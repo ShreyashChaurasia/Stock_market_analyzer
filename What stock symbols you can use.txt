@@ -1,0 +1,61 @@
+✅ What stock symbols can you use with yfinance?
+
+yfinance uses Yahoo Finance symbols, not exchange-native ones.
+
+🇺🇸 US Stocks (NASDAQ / NYSE)
+
+Just use the ticker directly:
+
+Company	Symbol
+Apple	AAPL
+Tesla	TSLA
+Microsoft	MSFT
+Google	GOOGL
+Nvidia	NVDA
+
+✔ These will work out of the box.
+
+🇮🇳 NSE (India) — YES, YOU CAN USE THEM ✅
+
+But with a required suffix.
+
+NSE format:
+<STOCK_NAME>.NS
+
+Examples (IMPORTANT):
+Company	NSE Symbol to enter
+Infosys	INFY.NS
+TCS	TCS.NS
+Reliance	RELIANCE.NS
+HDFC Bank	HDFCBANK.NS
+ICICI Bank	ICICIBANK.NS
+
+❌ INFY → wrong
+✅ INFY.NS → correct
+
+🏦 BSE Stocks
+
+Use:
+
+<STOCK_NAME>.BO
+
+
+Example:
+
+SBIN.BO
+
+🧪 Index Symbols (Also Supported)
+Index	Symbol
+NIFTY 50	^NSEI
+BANK NIFTY	^NSEBANK
+SENSEX	^BSESN
+S&P 500	^GSPC
+
+⚠️ Indices are not tradable, but useful for analysis / signals.
+
+🔴 Common Mistakes (Avoid These)
+Input	Result
+INFY	❌ No data / empty
+NSE:INFY	❌ Yahoo doesn’t use this
+RELIANCE	❌ Ambiguous
+RELIANCE.NS	✅ Correct
