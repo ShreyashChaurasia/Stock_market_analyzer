@@ -36,3 +36,20 @@ def predict_probability(df, ticker):
     X_scaled = scaler.transform(X)
 
     return model.predict_proba(X_scaled)[-1][1]
+
+def train_model_in_memory(df):
+    X = df[FEATURE_COLUMNS]
+    y = df["Target"]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    model = LogisticRegression(max_iter=1000)
+    model.fit(X_scaled, y)
+
+    return model, scaler
+
+def predict_with_model(df, model, scaler):
+    X = df[FEATURE_COLUMNS]
+    X_scaled = scaler.transform(X)
+    return model.predict_proba(X_scaled)[-1][1]

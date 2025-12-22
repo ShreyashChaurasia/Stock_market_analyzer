@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 import os
 
-def fetch_stock_data(ticker, period="1y", interval="1d"):
+def fetch_stock_data(ticker, period="5y", interval="1d"):
     df = yf.download(
         ticker,
         period=period,
