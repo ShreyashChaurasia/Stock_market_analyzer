@@ -8,5 +8,7 @@ FEATURE_COLUMNS = [
     "BB_low",
     "Return_1d",
     "Return_5d",
-    "Volatility"
+    "Volatility_20",
+    "Trend",
+    "Trend_Slope",
 ]

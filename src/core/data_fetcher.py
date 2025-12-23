@@ -23,3 +23,11 @@ def fetch_stock_data(ticker, period="5y", interval="1d"):
     df.to_csv(f"data/raw/{ticker}.csv")
 
     return df
+
+def flatten_columns(df):
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [
+            col[0] if col[1] == "" else col[0]
+            for col in df.columns
+        ]
+    return df
