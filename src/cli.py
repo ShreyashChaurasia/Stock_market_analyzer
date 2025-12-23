@@ -3,6 +3,10 @@ from src.core.indicators import add_indicators
 from src.core.feature_engineering import add_ml_features
 from src.core.probability_model import train_probability_model, predict_probability
 from src.core.prediction_payload import save_prediction_payload
+from src.visualization.plots import (
+plot_price_with_predictions,
+    plot_probability_over_time,
+)
 
 def main():
     ticker = input("Enter stock symbol: ").upper()
@@ -40,6 +44,9 @@ def run_backtest():
 
     results = walk_forward_backtest(df, ticker)
     metrics = classification_metrics(results)
+
+    plot_price_with_predictions(df, results, ticker)
+    plot_probability_over_time(results, ticker)
 
     print("\nBacktest Results")
     print("----------------")
