@@ -428,10 +428,10 @@ async def internal_error_handler(request, exc):
 if __name__ == "__main__":
     import uvicorn
     
-    print("🚀 Starting Stock Market ML API Server...")
-    print("📚 API Documentation: http://localhost:8000/docs")
-    print("📊 ReDoc: http://localhost:8000/redoc")
-    print("💚 Health Check: http://localhost:8000/api/health")
+    print("Starting Stock Market ML API Server...")
+    print("API Documentation: http://localhost:8000/docs")
+    print("ReDoc: http://localhost:8000/redoc")
+    print("Health Check: http://localhost:8000/api/health")
     
     uvicorn.run(
         app,

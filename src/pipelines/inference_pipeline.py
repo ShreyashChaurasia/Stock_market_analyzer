@@ -30,11 +30,11 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
         dict: Prediction results including probability, direction, and confidence
     """
     print(f"\n{'='*60}")
-    print(f"🚀 INFERENCE PIPELINE - {ticker}")
+    print(f"INFERENCE PIPELINE - {ticker}")
     print(f"{'='*60}\n")
 
     # Step 1: Fetch stock data
-    print("📊 Step 1/7: Fetching stock data...")
+    print("Step 1/7: Fetching stock data...")
     df = fetch_stock_data(ticker, start=start, end=end)
 
     if df.empty or len(df) < 100:
@@ -46,22 +46,22 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     print(f"   → Total rows: {len(df)}\n")
 
     # Step 2: Add technical indicators
-    print("📈 Step 2/7: Adding technical indicators...")
+    print("Step 2/7: Adding technical indicators...")
     df = add_indicators(df)
     print(f"   → Added: SMA, EMA, RSI, MACD, Bollinger Bands\n")
 
     # Step 3: Add ML features
-    print("🔧 Step 3/7: Engineering ML features...")
+    print("Step 3/7: Engineering ML features...")
     df = add_ml_features(df)
     print(f"   → Added: Returns, Volatility, Trend features\n")
 
     # Step 4: Create target variable (UP/DOWN next day)
-    print("🎯 Step 4/7: Creating target variable...")
+    print("Step 4/7: Creating target variable...")
     df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
     print(f"   → Target: 1 = Price UP next day, 0 = Price DOWN next day\n")
 
     # Step 5: Clean data
-    print("🧹 Step 5/7: Cleaning data...")
+    print("Step 5/7: Cleaning data...")
     rows_before = len(df)
     df = df.dropna()
     rows_after = len(df)
@@ -74,18 +74,18 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
         )
 
     # Step 6: Train model
-    print("🤖 Step 6/7: Training ML model...")
+    print("Step 6/7: Training ML model...")
     auc = train_probability_model(df, ticker)
     print(f"   → Model: Logistic Regression")
     print(f"   → Test AUC Score: {auc:.4f}")
     print(f"   → Model saved to: models/{ticker}_model.pkl\n")
 
     # Step 7: Get latest prediction
-    print("🔮 Step 7/7: Making prediction...")
+    print("Step 7/7: Making prediction...")
     probability_up = predict_probability(df, ticker)
     
     # Calculate prediction details
-    prediction_direction = "UP ⬆️" if probability_up > 0.5 else "DOWN ⬇️"
+    prediction_direction = "UP" if probability_up > 0.5 else "DOWN"
     confidence = abs(probability_up - 0.5) * 2  # Scale to 0-1
     
     print(f"   → Probability UP: {probability_up:.2%}")
@@ -121,7 +121,7 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     
     # Print summary
     print(f"\n{'='*60}")
-    print(f"✅ PREDICTION COMPLETE")
+    print(f"PREDICTION COMPLETE")
     print(f"{'='*60}")
     print(f"Ticker: {ticker}")
     print(f"Latest Price: ${latest_close:.2f}")

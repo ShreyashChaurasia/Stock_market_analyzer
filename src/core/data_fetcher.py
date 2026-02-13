@@ -18,7 +18,7 @@ def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
         pandas.DataFrame: Stock data with OHLCV columns
     """
     try:
-        print(f"📊 Fetching data for {ticker}...")
+        print(f"Fetching data for {ticker}...")
         
         # Create ticker object
         stock = yf.Ticker(ticker)
@@ -71,14 +71,14 @@ def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
         csv_path = f"data/raw/{ticker}.csv"
         df.to_csv(csv_path)
 
-        print(f"✅ Successfully fetched {len(df)} rows for {ticker}")
-        print(f"📁 Saved to: {csv_path}")
-        print(f"📅 Date range: {df.index[0]} to {df.index[-1]}")
+        print(f"Successfully fetched {len(df)} rows for {ticker}")
+        print(f"Saved to: {csv_path}")
+        print(f"Date range: {df.index[0]} to {df.index[-1]}")
         
         return df
         
     except Exception as e:
-        print(f"❌ Error fetching data for {ticker}: {str(e)}")
+        print(f"Error fetching data for {ticker}: {str(e)}")
         raise
 
 
@@ -154,6 +154,6 @@ def load_stock_data(ticker):
         )
     
     df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
-    print(f"✅ Loaded {len(df)} rows for {ticker} from {csv_path}")
+    print(f"Loaded {len(df)} rows for {ticker} from {csv_path}")
     
     return df
