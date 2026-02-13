@@ -1,0 +1,14 @@
+{
+    "ticker": "AAPL",
+    "prediction_date": "2026-02-13 20:05:13",
+    "latest_data_date": "2026-02-13",
+    "latest_close": 259.71,
+    "probability_up": 0.6189,
+    "probability_down": 0.3811,
+    "prediction": "UP",
+    "confidence": 0.2378,
+    "confidence_percent": "23.8%",
+    "model_auc": 0.5287,
+    "data_points_used": 1206,
+    "interpretation": "Weak signal for price to increase"
+}

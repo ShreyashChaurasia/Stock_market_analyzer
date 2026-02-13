@@ -3,27 +3,36 @@ import pandas as pd
 import os
 from datetime import datetime, timedelta
 
+from src.core.config import settings
+from src.core.logger import get_logger
+from src.core.exceptions import DataFetchError, InsufficientDataError
+
+logger = get_logger(__name__)
+
+
 def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
     """
     Fetch stock data from Yahoo Finance with improved error handling
     
     Args:
-        ticker: Stock symbol (e.g., 'AAPL', 'TSLA')
-        period: Time period if start/end not specified (default: "5y")
-        interval: Data interval - "1d", "1h", etc. (default: "1d")
-        start: Start date (YYYY-MM-DD string or datetime object)
-        end: End date (YYYY-MM-DD string or datetime object)
+        ticker: Stock symbol
+        period: Time period if start/end not specified
+        interval: Data interval
+        start: Start date
+        end: End date
     
     Returns:
         pandas.DataFrame: Stock data with OHLCV columns
-    """
-    try:
-        print(f"Fetching data for {ticker}...")
         
-        # Create ticker object
+    Raises:
+        DataFetchError: If data cannot be fetched
+        InsufficientDataError: If insufficient data points
+    """
+    logger.info(f"Fetching data for {ticker} (period={period}, start={start}, end={end})")
+    
+    try:
         stock = yf.Ticker(ticker)
         
-        # Determine whether to use period or date range
         if start and end:
             df = stock.history(
                 start=start,
@@ -33,7 +42,6 @@ def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
                 actions=False
             )
         elif start and not end:
-            # If only start is provided, fetch until today
             df = stock.history(
                 start=start,
                 end=datetime.now().strftime("%Y-%m-%d"),
@@ -42,7 +50,6 @@ def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
                 actions=False
             )
         else:
-            # Use period if no dates specified
             df = stock.history(
                 period=period,
                 interval=interval,
@@ -51,109 +58,62 @@ def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):
             )
 
         if df.empty:
-            raise ValueError(f"No data found for ticker: {ticker}")
+            raise DataFetchError(ticker, "No data returned from Yahoo Finance")
 
-        # CRITICAL FIX: Flatten MultiIndex columns if present
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
         
-        # Additional safety: squeeze any remaining multi-dimensional columns
         for col in ["Open", "High", "Low", "Close", "Volume"]:
             if col in df.columns:
                 if hasattr(df[col], 'squeeze'):
                     df[col] = df[col].squeeze()
 
-        # Validate data
         validate_data(df, ticker)
 
-        # Save to CSV in data/raw/
-        os.makedirs("data/raw", exist_ok=True)
-        csv_path = f"data/raw/{ticker}.csv"
+        os.makedirs(settings.DATA_DIR, exist_ok=True)
+        csv_path = os.path.join(settings.DATA_DIR, f"{ticker}.csv")
         df.to_csv(csv_path)
 
-        print(f"Successfully fetched {len(df)} rows for {ticker}")
-        print(f"Saved to: {csv_path}")
-        print(f"Date range: {df.index[0]} to {df.index[-1]}")
+        logger.info(f"Successfully fetched {len(df)} rows for {ticker}")
         
         return df
         
-    except Exception as e:
-        print(f"Error fetching data for {ticker}: {str(e)}")
+    except DataFetchError:
         raise
-
-
-def flatten_columns(df):
-    """
-    Flatten MultiIndex columns to single level
-    
-    Args:
-        df: DataFrame with potentially multi-level columns
-    
-    Returns:
-        DataFrame with flattened columns
-    """
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [
-            col[0] if col[1] == "" else col[0]
-            for col in df.columns
-        ]
-    return df
+    except InsufficientDataError:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching data for {ticker}: {str(e)}", exc_info=True)
+        raise DataFetchError(ticker, str(e))
 
 
 def validate_data(df, ticker):
-    """
-    Validate the fetched stock data
-    
-    Args:
-        df: DataFrame to validate
-        ticker: Stock ticker for error messages
-    
-    Raises:
-        ValueError: If data validation fails
-    """
-    # Check for required columns
+    """Validate the fetched stock data"""
     required_cols = ["Open", "High", "Low", "Close", "Volume"]
     missing_cols = [col for col in required_cols if col not in df.columns]
     
     if missing_cols:
-        raise ValueError(
-            f"Missing required columns for {ticker}: {missing_cols}"
-        )
+        raise DataFetchError(ticker, f"Missing columns: {missing_cols}")
     
-    # Check for completely null columns
     null_cols = [col for col in required_cols if df[col].isnull().all()]
     if null_cols:
-        raise ValueError(
-            f"Columns contain only null values for {ticker}: {null_cols}"
-        )
+        raise DataFetchError(ticker, f"Null columns: {null_cols}")
     
-    # Check minimum data points
-    if len(df) < 50:
-        raise ValueError(
-            f"Insufficient data for {ticker}: {len(df)} rows (minimum 50 required)"
-        )
+    if len(df) < settings.MIN_DATA_POINTS:
+        raise InsufficientDataError(ticker, len(df), settings.MIN_DATA_POINTS)
     
     return True
 
 
 def load_stock_data(ticker):
-    """
-    Load previously saved stock data from CSV
-    
-    Args:
-        ticker: Stock symbol
-    
-    Returns:
-        DataFrame: Loaded stock data
-    """
-    csv_path = f"data/raw/{ticker}.csv"
+    """Load previously saved stock data from CSV"""
+    csv_path = os.path.join(settings.DATA_DIR, f"{ticker}.csv")
     
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(
-            f"No saved data found for {ticker}. Run fetch_stock_data() first."
-        )
+        logger.warning(f"No saved data found for {ticker}")
+        raise DataFetchError(ticker, "No saved data available")
     
     df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
-    print(f"Loaded {len(df)} rows for {ticker} from {csv_path}")
+    logger.info(f"Loaded {len(df)} rows for {ticker} from cache")
     
     return df
