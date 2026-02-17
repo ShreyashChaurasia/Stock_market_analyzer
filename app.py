@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends
+from contextlib import asynccontextmanager
+import os
+import time
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import time
 
 from src.core.config import settings
 from src.core.logger import get_logger
@@ -15,24 +18,46 @@ from src.middleware.error_handler import (
 )
 from src.middleware.logging_middleware import LoggingMiddleware
 from src.schemas.prediction import PredictionRequest, PredictionResponse
-from src.schemas.stock import HealthResponse, ModelInfo
+from src.schemas.stock import HealthResponse
 from src.pipelines.inference_pipeline import run_inference_pipeline
+from src.services.model_service import ModelService
+from src.registry.model_registry import registry
+from src.core.data_fetcher import fetch_stock_data
+from src.core.indicators import add_indicators
+from src.core.feature_engineering import add_ml_features
 
 logger = get_logger(__name__)
 
 # Track startup time
 startup_time = time.time()
 
-# Initialize FastAPI app
+# Initialize services
+model_service = ModelService()
+
+
+# Lifespan (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info(f"Starting {settings.API_TITLE} v{settings.API_VERSION}")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    yield
+    # Shutdown
+    logger.info("Shutting down application")
+
+
+# App Initialization
 app = FastAPI(
     title=settings.API_TITLE,
     description=settings.API_DESCRIPTION,
     version=settings.API_VERSION,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
-# Add CORS middleware
+
+# Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -41,28 +66,17 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
-# Add logging middleware
 app.add_middleware(LoggingMiddleware)
 
-# Register exception handlers
+
+# Exception Handlers
 app.add_exception_handler(StockAnalyzerException, stock_analyzer_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-# Startup/Shutdown events
-@app.on_event("startup")
-async def startup_event():
-    logger.info(f"Starting {settings.API_TITLE} v{settings.API_VERSION}")
-    logger.info(f"Debug mode: {settings.DEBUG}")
 
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down application")
-
-
-# Routes
+# Health Routes
 @app.get("/", tags=["Health"])
 def read_root():
     """API welcome message"""
@@ -77,15 +91,16 @@ def read_root():
 @app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
     """Detailed health check"""
-    import os
-    
     models_count = 0
     if os.path.exists(settings.MODEL_DIR):
-        model_files = [f for f in os.listdir(settings.MODEL_DIR) if f.endswith("_model.pkl")]
+        model_files = [
+            f for f in os.listdir(settings.MODEL_DIR)
+            if f.endswith("_model.pkl")
+        ]
         models_count = len(model_files)
-    
+
     uptime = time.time() - startup_time
-    
+
     return {
         "status": "healthy",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -95,26 +110,193 @@ def health_check():
     }
 
 
+# Prediction Routes
 @app.post("/api/predict", response_model=PredictionResponse, tags=["Predictions"])
 async def predict_stock(request: PredictionRequest):
-    """Get ML prediction for a stock ticker"""
+    """
+    Get ML prediction for a stock ticker
+
+    Fetches data, trains model, and returns probability of price
+    going UP the next trading day.
+    """
     logger.info(f"Prediction request for {request.ticker}")
-    
+
     result = run_inference_pipeline(
         ticker=request.ticker,
         start=request.start_date,
         end=request.end_date
     )
-    
+
     return result
 
 
+@app.post("/api/predict-with-version", tags=["Predictions"])
+async def predict_with_version(version_id: str, ticker: str):
+    """
+    Make prediction using a specific trained model version
+
+    Args:
+        version_id: Model version ID from registry
+        ticker: Stock symbol to fetch latest data for
+    """
+    logger.info(f"Predict with version {version_id} for {ticker}")
+
+    df = fetch_stock_data(ticker, period="1y")
+    df = add_indicators(df)
+    df = add_ml_features(df)
+    df = df.dropna()
+
+    result = model_service.predict_with_model(version_id, df)
+
+    return {
+        "success": True,
+        "ticker": ticker,
+        "prediction": result
+    }
+
+
+# Model Training Routes
+@app.post("/api/train-model", tags=["Models"])
+async def train_single_model(
+    ticker: str,
+    model_type: str = "logistic",
+    tune: bool = False
+):
+    """
+    Train a specific model type for a ticker
+
+    Args:
+        ticker: Stock symbol
+        model_type: logistic, random_forest, xgboost, gradient_boosting
+        tune: Whether to run hyperparameter tuning
+    """
+    logger.info(f"Training {model_type} for {ticker}")
+
+    df = fetch_stock_data(ticker)
+    df = add_indicators(df)
+    df = add_ml_features(df)
+    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
+    df = df.dropna()
+
+    result = model_service.train_single_model(df, ticker, model_type, tune)
+
+    return {
+        "success": True,
+        "message": f"Model {model_type} trained for {ticker}",
+        "data": result
+    }
+
+
+@app.post("/api/compare-models", tags=["Models"])
+async def compare_models(ticker: str):
+    """
+    Train and compare all available models for a ticker
+
+    Args:
+        ticker: Stock symbol
+    """
+    logger.info(f"Comparing all models for {ticker}")
+
+    df = fetch_stock_data(ticker)
+    df = add_indicators(df)
+    df = add_ml_features(df)
+    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
+    df = df.dropna()
+
+    result = model_service.train_all_models(df, ticker)
+
+    return {
+        "success": True,
+        "message": f"Trained and compared all models for {ticker}",
+        "data": result
+    }
+
+
+# Model Registry Routes
+@app.get("/api/model-versions/{ticker}", tags=["Models"])
+async def list_model_versions(ticker: str):
+    """
+    List all trained model versions for a ticker
+
+    Args:
+        ticker: Stock symbol
+    """
+    models = registry.list_models(ticker=ticker)
+
+    return {
+        "success": True,
+        "ticker": ticker,
+        "total_models": len(models),
+        "models": models
+    }
+
+
+@app.get("/api/best-model/{ticker}", tags=["Models"])
+async def get_best_model(ticker: str, metric: str = "auc"):
+    """
+    Get the best performing model for a ticker
+
+    Args:
+        ticker: Stock symbol
+        metric: Metric to rank by (auc, accuracy, f1_score, precision, recall)
+    """
+    best_model = registry.get_best_model(ticker, metric)
+
+    if not best_model:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No trained models found for {ticker}"
+        )
+
+    return {
+        "success": True,
+        "ticker": ticker,
+        "metric": metric,
+        "best_model": best_model
+    }
+
+
+@app.get("/api/models", tags=["Models"])
+def list_all_models():
+    """
+    List all trained models across all tickers
+    """
+    models = registry.list_models()
+
+    return {
+        "success": True,
+        "total_models": len(models),
+        "models": models
+    }
+
+
+@app.delete("/api/model-versions/{version_id}", tags=["Models"])
+async def delete_model_version(version_id: str):
+    """
+    Delete a specific model version
+
+    Args:
+        version_id: Model version ID to delete
+    """
+    try:
+        registry.delete_model(version_id)
+        return {
+            "success": True,
+            "message": f"Model version {version_id} deleted"
+        }
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model version {version_id} not found"
+        )
+
+# Entry Point
 if __name__ == "__main__":
     import uvicorn
-    
+
     logger.info("Starting Stock Market ML API Server")
     logger.info(f"Documentation: http://{settings.API_HOST}:{settings.API_PORT}/docs")
-    
+
     uvicorn.run(
         "app:app",
         host=settings.API_HOST,
