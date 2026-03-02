@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 import os
 import time
 
@@ -25,6 +26,7 @@ from src.registry.model_registry import registry
 from src.core.data_fetcher import fetch_stock_data
 from src.core.indicators import add_indicators
 from src.core.feature_engineering import add_ml_features
+from src.services.market_data_service import market_service
 
 logger = get_logger(__name__)
 
@@ -288,6 +290,141 @@ async def delete_model_version(version_id: str):
         raise HTTPException(
             status_code=404,
             detail=f"Model version {version_id} not found"
+        )
+
+@app.get("/api/market/indices", tags=["Market Data"])
+async def get_market_indices():
+    """
+    Get real-time data for major market indices
+    
+    Returns current prices and changes for:
+    - S&P 500
+    - NASDAQ
+    - Dow Jones
+    - NIFTY 50
+    - SENSEX
+    """
+    logger.info("Fetching market indices data")
+    
+    try:
+        indices = market_service.get_all_indices()
+        
+        return {
+            "success": True,
+            "data": indices,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching market indices: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch market data: {str(e)}"
+        )
+
+
+@app.get("/api/market/stock-info/{ticker}", tags=["Market Data"])
+async def get_stock_info(ticker: str):
+    """
+    Get detailed information about a stock
+    
+    Args:
+        ticker: Stock ticker symbol
+        
+    Returns:
+        Company info, market cap, P/E ratio, 52-week high/low, etc.
+    """
+    logger.info(f"Fetching stock info for {ticker}")
+    
+    try:
+        info = market_service.get_stock_info(ticker.upper())
+        
+        if not info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not fetch info for {ticker}"
+            )
+        
+        return {
+            "success": True,
+            "data": info
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching stock info: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch stock info: {str(e)}"
+        )
+
+
+@app.get("/api/market/technical-indicators/{ticker}", tags=["Market Data"])
+async def get_technical_indicators(ticker: str):
+    """
+    Get real technical indicators for a stock
+    
+    Args:
+        ticker: Stock ticker symbol
+        
+    Returns:
+        RSI, MACD, SMA, Bollinger Bands with buy/sell signals
+    """
+    logger.info(f"Calculating technical indicators for {ticker}")
+    
+    try:
+        indicators = market_service.get_technical_indicators(ticker.upper())
+        
+        if not indicators:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not calculate indicators for {ticker}"
+            )
+        
+        return {
+            "success": True,
+            "data": indicators
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating indicators: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to calculate indicators: {str(e)}"
+        )
+
+
+@app.get("/api/market/historical-prices/{ticker}", tags=["Market Data"])
+async def get_historical_prices(
+    ticker: str,
+    period: str = "1mo"
+):
+    """
+    Get historical price data for charting
+    
+    Args:
+        ticker: Stock ticker symbol
+        period: Time period (1mo, 3mo, 6mo, 1y, 2y, 5y)
+        
+    Returns:
+        Historical prices with moving averages
+    """
+    logger.info(f"Fetching historical prices for {ticker} (period: {period})")
+    
+    try:
+        prices = market_service.get_historical_prices(ticker.upper(), period)
+        
+        return {
+            "success": True,
+            "ticker": ticker.upper(),
+            "period": period,
+            "data": prices
+        }
+    except Exception as e:
+        logger.error(f"Error fetching historical prices: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch historical prices: {str(e)}"
         )
 
 # Entry Point
