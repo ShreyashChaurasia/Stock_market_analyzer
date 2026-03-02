@@ -1,0 +1,38 @@
+{
+  "version_id": "MSFT_logistic_regression_20260302_234140",
+  "ticker": "MSFT",
+  "model_name": "Logistic Regression",
+  "model_type": "LogisticModel",
+  "timestamp": "2026-03-02T23:41:40.931684",
+  "metrics": {
+    "accuracy": 0.5041322314049587,
+    "precision": 0.5294117647058824,
+    "recall": 0.5625,
+    "f1_score": 0.5454545454545454,
+    "auc": 0.49780701754385964,
+    "true_positives": 72,
+    "true_negatives": 50,
+    "false_positives": 64,
+    "false_negatives": 56
+  },
+  "is_trained": true,
+  "params": {
+    "C": 1.0,
+    "class_weight": "balanced",
+    "dual": false,
+    "fit_intercept": true,
+    "intercept_scaling": 1,
+    "l1_ratio": null,
+    "max_iter": 1000,
+    "multi_class": "deprecated",
+    "n_jobs": null,
+    "penalty": "l2",
+    "random_state": 42,
+    "solver": "lbfgs",
+    "tol": 0.0001,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "file_path": "model_artifacts\\versions\\MSFT_logistic_regression_20260302_234140.pkl",
+  "file_size_kb": 1.291015625,
+  "scaler": 

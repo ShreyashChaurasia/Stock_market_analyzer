@@ -1,14 +1,14 @@
 {
     "ticker": "NVDA",
-    "prediction_date": "2026-03-01 22:09:55",
-    "latest_data_date": "2026-02-27",
-    "latest_close": 177.19,
-    "probability_up": 0.4931,
-    "probability_down": 0.5069,
-    "prediction": "DOWN",
-    "confidence": 0.0137,
-    "confidence_percent": "1.4%",
-    "model_auc": 0.5147,
+    "prediction_date": "2026-03-02 23:40:30",
+    "latest_data_date": "2026-03-02",
+    "latest_close": 182.54,
+    "probability_up": 0.5529,
+    "probability_down": 0.4471,
+    "prediction": "UP",
+    "confidence": 0.1058,
+    "confidence_percent": "10.6%",
+    "model_auc": 0.5064,
     "data_points_used": 1206,
-    "interpretation": "Weak signal for price to decrease"
+    "interpretation": "Weak signal for price to increase"
 }
