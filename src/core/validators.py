@@ -8,7 +8,8 @@ from src.core.exceptions import InvalidTickerError, InvalidDateRangeError
 class TickerValidator:
     """Validates stock ticker symbols"""
     
-    TICKER_PATTERN = re.compile(r'^[A-Z]{1,5}$')
+    # Updated pattern to support Indian stocks (.NS, .BO suffix)
+    TICKER_PATTERN = re.compile(r'^[A-Z]{1,10}(\.(NS|BO|NSE|BSE))?$')
     
     @classmethod
     def validate(cls, ticker: str) -> str:

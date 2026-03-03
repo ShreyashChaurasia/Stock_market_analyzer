@@ -21,10 +21,12 @@ class ModelRegistry:
         self.base_dir = Path(base_dir)
         self.metadata_dir = self.base_dir / "metadata"
         self.versions_dir = self.base_dir / "versions"
+        self.scalers_dir = self.base_dir / "scalers"  # NEW: separate directory for scalers
         
         # Create directories
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
         self.versions_dir.mkdir(parents=True, exist_ok=True)
+        self.scalers_dir.mkdir(parents=True, exist_ok=True)  # NEW
     
     def save_model(
         self,
@@ -50,7 +52,16 @@ class ModelRegistry:
         with open(model_path, 'wb') as f:
             pickle.dump(model, f)
         
-        # Save metadata
+        # Separate scaler from metadata if present
+        scaler = None
+        if metadata and 'scaler' in metadata:
+            scaler = metadata.pop('scaler')  # Remove from metadata
+            # Save scaler separately
+            scaler_path = self.scalers_dir / f"{version_id}_scaler.pkl"
+            with open(scaler_path, 'wb') as f:
+                pickle.dump(scaler, f)
+        
+        # Create JSON-serializable metadata
         meta = {
             'version_id': version_id,
             'ticker': ticker,
@@ -61,12 +72,21 @@ class ModelRegistry:
             'is_trained': model.is_trained,
             'params': model.get_params(),
             'file_path': str(model_path),
-            'file_size_kb': model_path.stat().st_size / 1024
+            'file_size_kb': model_path.stat().st_size / 1024,
+            'has_scaler': scaler is not None,  # Flag to indicate scaler exists
         }
         
+        # Add remaining metadata (excluding non-serializable objects)
         if metadata:
-            meta.update(metadata)
+            # Filter out any remaining non-serializable objects
+            for key, value in metadata.items():
+                try:
+                    json.dumps(value)  # Test if serializable
+                    meta[key] = value
+                except (TypeError, ValueError):
+                    logger.warning(f"Skipping non-serializable metadata field: {key}")
         
+        # Save metadata as JSON
         metadata_path = self.metadata_dir / f"{version_id}.json"
         with open(metadata_path, 'w') as f:
             json.dump(meta, f, indent=2)
@@ -97,15 +117,51 @@ class ModelRegistry:
         
         return model
     
+    def load_scaler(self, version_id: str):
+        """
+        Load scaler for a model version
+        
+        Args:
+            version_id: Version identifier
+            
+        Returns:
+            Loaded scaler or None if not found
+        """
+        scaler_path = self.scalers_dir / f"{version_id}_scaler.pkl"
+        
+        if not scaler_path.exists():
+            return None
+        
+        with open(scaler_path, 'rb') as f:
+            scaler = pickle.load(f)
+        
+        logger.info(f"Loaded scaler: {version_id}")
+        
+        return scaler
+    
     def get_metadata(self, version_id: str) -> Dict[str, Any]:
-        """Get model metadata"""
+        """
+        Get model metadata
+        
+        Args:
+            version_id: Version identifier
+            
+        Returns:
+            Metadata dictionary with scaler loaded if available
+        """
         metadata_path = self.metadata_dir / f"{version_id}.json"
         
         if not metadata_path.exists():
             raise FileNotFoundError(f"Metadata not found: {version_id}")
         
         with open(metadata_path, 'r') as f:
-            return json.load(f)
+            meta = json.load(f)
+        
+        # Load scaler if it exists
+        if meta.get('has_scaler'):
+            meta['scaler'] = self.load_scaler(version_id)
+        
+        return meta
     
     def list_models(
         self,
@@ -125,16 +181,20 @@ class ModelRegistry:
         models = []
         
         for metadata_file in self.metadata_dir.glob("*.json"):
-            with open(metadata_file, 'r') as f:
-                meta = json.load(f)
-            
-            # Apply filters
-            if ticker and meta.get('ticker') != ticker:
+            try:
+                with open(metadata_file, 'r') as f:
+                    meta = json.load(f)
+                
+                # Apply filters
+                if ticker and meta.get('ticker') != ticker:
+                    continue
+                if model_type and meta.get('model_type') != model_type:
+                    continue
+                
+                models.append(meta)
+            except Exception as e:
+                logger.error(f"Error reading metadata file {metadata_file}: {str(e)}")
                 continue
-            if model_type and meta.get('model_type') != model_type:
-                continue
-            
-            models.append(meta)
         
         # Sort by timestamp (newest first)
         models.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -170,14 +230,17 @@ class ModelRegistry:
         return models[0]
     
     def delete_model(self, version_id: str) -> None:
-        """Delete model and metadata"""
+        """Delete model, scaler, and metadata"""
         model_path = self.versions_dir / f"{version_id}.pkl"
         metadata_path = self.metadata_dir / f"{version_id}.json"
+        scaler_path = self.scalers_dir / f"{version_id}_scaler.pkl"
         
         if model_path.exists():
             model_path.unlink()
         if metadata_path.exists():
             metadata_path.unlink()
+        if scaler_path.exists():
+            scaler_path.unlink()
         
         logger.info(f"Deleted model: {version_id}")
     

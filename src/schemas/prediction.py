@@ -1,19 +1,15 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
-from datetime import datetime
-
-from src.core.validators import TickerValidator, DateValidator, PeriodValidator
-
 
 class PredictionRequest(BaseModel):
     """Request schema for stock prediction"""
     
     ticker: str = Field(
         ...,
-        description="Stock ticker symbol",
+        description="Stock ticker symbol (supports .NS/.BO suffix for Indian stocks)",
         example="AAPL",
         min_length=1,
-        max_length=5
+        max_length=20  # Increased from 5 to support Indian stocks
     )
     start_date: Optional[str] = Field(
         None,
@@ -27,32 +23,19 @@ class PredictionRequest(BaseModel):
     )
     period: Optional[str] = Field(
         "5y",
-        description="Time period (used if start_date and end_date not provided)",
+        description="Time period",
         example="1y"
     )
     
-    @validator('ticker')
+    @field_validator('ticker')
     def validate_ticker(cls, v):
-        return TickerValidator.validate(v)
-    
-    @validator('start_date', 'end_date')
-    def validate_dates(cls, v):
-        if v:
-            DateValidator.validate_date(v)
-        return v
-    
-    @validator('period')
-    def validate_period(cls, v):
-        if v:
-            return PeriodValidator.validate(v)
-        return v
+        return v.strip().upper()
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "ticker": "NVDA",
-                "start_date": "2023-01-01",
-                "end_date": "2024-12-31"
+                "period": "1y"
             }
         }
 
@@ -74,47 +57,12 @@ class PredictionResponse(BaseModel):
     interpretation: str
     
     class Config:
-        schema_extra = {
+        protected_namespaces = ()  # Allow model_ prefix
+        json_schema_extra = {
             "example": {
                 "ticker": "AAPL",
-                "prediction_date": "2024-02-10 12:00:00",
-                "latest_data_date": "2024-02-10",
-                "latest_close": 185.50,
-                "probability_up": 0.6234,
-                "probability_down": 0.3766,
                 "prediction": "UP",
-                "confidence": 0.2468,
-                "confidence_percent": "24.7%",
-                "model_auc": 0.5456,
-                "data_points_used": 1256,
-                "interpretation": "Moderate signal for price to increase"
+                "probability_up": 0.65,
+                "confidence_percent": "30%"
             }
         }
-
-
-class BacktestRequest(BaseModel):
-    """Request schema for backtesting"""
-    
-    ticker: str = Field(..., description="Stock ticker symbol", example="TSLA")
-    start_date: Optional[str] = Field(None, description="Start date", example="2022-01-01")
-    end_date: Optional[str] = Field(None, description="End date", example="2024-12-31")
-    
-    @validator('ticker')
-    def validate_ticker(cls, v):
-        return TickerValidator.validate(v)
-
-
-class BacktestResponse(BaseModel):
-    """Response schema for backtest results"""
-    
-    ticker: str
-    start_date: str
-    end_date: str
-    total_predictions: int
-    accuracy: float
-    precision: float
-    recall: float
-    f1_score: float
-    predictions_up: int
-    predictions_down: int
-    correct_predictions: int

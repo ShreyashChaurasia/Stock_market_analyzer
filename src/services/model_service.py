@@ -46,8 +46,16 @@ class ModelService:
         """
         logger.info(f"Training {model_type} for {ticker}")
         
+        # Get available features from dataframe
+        available_features = [col for col in FEATURE_COLUMNS if col in df.columns]
+        
+        if len(available_features) == 0:
+            raise ValueError(f"No features found in dataframe. Available columns: {df.columns.tolist()}")
+        
+        logger.info(f"Using {len(available_features)} features: {available_features}")
+        
         # Prepare data
-        X = df[FEATURE_COLUMNS]
+        X = df[available_features]
         y = df['Target']
         
         # Handle missing values
@@ -79,7 +87,7 @@ class ModelService:
             metadata={
                 'scaler': scaler,
                 'tuning_results': tuning_results,
-                'feature_columns': FEATURE_COLUMNS
+                'feature_columns': available_features
             }
         )
         
@@ -109,8 +117,16 @@ class ModelService:
         """
         logger.info(f"Training all models for {ticker}")
         
+        # Get available features
+        available_features = [col for col in FEATURE_COLUMNS if col in df.columns]
+        
+        if len(available_features) == 0:
+            raise ValueError(f"No features found in dataframe. Available columns: {df.columns.tolist()}")
+        
+        logger.info(f"Using {len(available_features)} features")
+        
         # Prepare data
-        X = df[FEATURE_COLUMNS]
+        X = df[available_features]
         y = df['Target']
         
         X = X.fillna(X.median())
@@ -135,7 +151,7 @@ class ModelService:
                     result['model'], ticker,
                     metadata={
                         'scaler': scaler,
-                        'feature_columns': FEATURE_COLUMNS
+                        'feature_columns': available_features
                     }
                 )
                 saved_versions.append({
@@ -148,7 +164,7 @@ class ModelService:
             'ticker': ticker,
             'models_trained': len(saved_versions),
             'saved_versions': saved_versions,
-            'comparison': comparison_results['comparison'].to_dict('records'),
+            'comparison': comparison_results['comparison'].to_dict('records') if not comparison_results['comparison'].empty else [],
             'best_model': comparison_results['best_model']
         }
     
@@ -171,12 +187,13 @@ class ModelService:
         model = self.registry.load_model(version_id)
         metadata = self.registry.get_metadata(version_id)
         
-        # Get scaler
+        # Get scaler and features
         scaler = metadata.get('scaler')
         feature_columns = metadata.get('feature_columns', FEATURE_COLUMNS)
         
         # Prepare features
-        X = df[feature_columns].fillna(df[feature_columns].median())
+        available_features = [col for col in feature_columns if col in df.columns]
+        X = df[available_features].fillna(df[available_features].median())
         
         if scaler:
             X = scaler.transform(X)
