@@ -20,50 +20,57 @@ export const ProbabilityChart: React.FC<ProbabilityChartProps> = ({
 	probabilityUp,
 	probabilityDown,
 }) => {
-	const data = [
-		{
-			direction: 'UP',
-			probability: probabilityUp * 100,
-			fill: '#10b981',
-		},
-		{
-			direction: 'DOWN',
-			probability: probabilityDown * 100,
-			fill: '#ef4444',
-		},
-	];
+  const data = [
+    {
+      direction: 'UP',
+      probability: probabilityUp * 100,
+      fill: '#00D09C', // Groww mint green
+    },
+    {
+      direction: 'DOWN',
+      probability: probabilityDown * 100,
+      fill: '#F23645', // TradingView sharp red
+    },
+  ];
 
-	return (
-		<div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-			<h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-				Prediction Probability
-			</h3>
-			<ResponsiveContainer width="100%" height={300}>
-				<BarChart data={data}>
-					<CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-					<XAxis dataKey="direction" stroke="#6b7280" />
-					<YAxis
-						stroke="#6b7280"
-						tickFormatter={(value) => `${value}%`}
-						domain={[0, 100]}
-					/>
-					<Tooltip
-						contentStyle={{
-							backgroundColor: '#1f2937',
-							border: 'none',
-							borderRadius: '8px',
-							color: '#fff',
-						}}
-						formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Probability']}
-					/>
-					<Legend />
-					<Bar dataKey="probability" name="Probability">
-						{data.map((entry, index) => (
-							<Cell key={`cell-${index}`} fill={entry.fill} />
-						))}
-					</Bar>
-				</BarChart>
-			</ResponsiveContainer>
-		</div>
-	);
+  return (
+    <div className="glass-panel p-6 flex flex-col h-full">
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">
+        AI Prediction Model
+      </h3>
+      <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={data} margin={{ top: 20, right: 30, left: -20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" vertical={false} opacity={0.4} />
+            <XAxis dataKey="direction" stroke="#718096" tick={{ fill: '#718096', fontSize: 12, fontWeight: 'bold' }} tickLine={false} axisLine={false} dy={10} />
+            <YAxis
+              stroke="#718096"
+              tickFormatter={(value) => `${value}%`}
+              domain={[0, 100]}
+              tick={{ fill: '#718096', fontSize: 12 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#121212',
+                border: '1px solid #27272A',
+                borderRadius: '12px',
+                color: '#fff',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+              formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Probability']}
+              cursor={{ fill: '#27272A', opacity: 0.4 }}
+            />
+            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+            <Bar dataKey="probability" name="Probability" radius={[4, 4, 0, 0]} maxBarSize={60}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 };

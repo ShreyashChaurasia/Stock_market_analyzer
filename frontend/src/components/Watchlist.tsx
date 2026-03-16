@@ -11,14 +11,14 @@ export const Watchlist: React.FC<WatchlistProps> = ({ onSelectStock }) => {
 
   if (watchlist.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center space-x-2 mb-4">
+      <div className="glass-panel p-6 text-center">
+        <div className="flex items-center justify-center space-x-2 mb-4">
           <Star className="h-5 w-5 text-yellow-500" />
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">
             Watchlist
           </h3>
         </div>
-        <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 py-6">
           No stocks in your watchlist yet. Add stocks to track them here.
         </p>
       </div>
@@ -26,33 +26,33 @@ export const Watchlist: React.FC<WatchlistProps> = ({ onSelectStock }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <div className="flex items-center space-x-2 mb-4">
+    <div className="glass-panel p-6">
+      <div className="flex items-center space-x-2 mb-5">
         <Star className="h-5 w-5 text-yellow-500" />
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          Watchlist ({watchlist.length})
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-wider uppercase">
+          Watchlist <span className="text-brand-accent ml-1">({watchlist.length})</span>
         </h3>
       </div>
       <div className="space-y-3">
         {watchlist.map((item) => (
           <div
             key={item.ticker}
-            className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-brand-surfaceHover hover:border-brand-accent/50 dark:hover:border-brand-accent/50 transition-all group"
           >
             <button
               onClick={() => onSelectStock(item.ticker)}
               className="flex-1 text-left"
             >
               <div className="flex items-center space-x-3">
-                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                <span className="text-lg font-mono font-bold text-gray-900 dark:text-white tracking-tight">
                   {item.ticker}
                 </span>
                 {item.prediction && (
                   <span
                     className={`flex items-center space-x-1 text-sm font-medium ${
                       item.prediction === 'UP'
-                        ? 'text-green-600'
-                        : 'text-red-600'
+                        ? 'text-financial-green'
+                        : 'text-financial-red'
                     }`}
                   >
                     {item.prediction === 'UP' ? (
@@ -60,19 +60,19 @@ export const Watchlist: React.FC<WatchlistProps> = ({ onSelectStock }) => {
                     ) : (
                       <TrendingDown className="h-4 w-4" />
                     )}
-                    <span>{item.prediction}</span>
+                    <span className="uppercase tracking-wider">{item.prediction}</span>
                   </span>
                 )}
               </div>
               {item.latestPrice && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm font-mono text-gray-500 dark:text-gray-400 mt-1">
                   ${item.latestPrice.toFixed(2)}
                 </p>
               )}
             </button>
             <button
               onClick={() => removeFromWatchlist(item.ticker)}
-              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
             >
               <Trash2 className="h-4 w-4" />
             </button>

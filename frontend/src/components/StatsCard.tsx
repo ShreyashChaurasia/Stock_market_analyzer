@@ -18,21 +18,21 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   color = 'blue',
 }) => {
   const colorClasses = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    red: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
-    yellow: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+    blue: 'bg-brand-accent/10 dark:bg-brand-accent/10 text-brand-accent dark:text-brand-accent',
+    green: 'bg-financial-green/10 dark:bg-financial-green/10 text-financial-green dark:text-financial-green',
+    red: 'bg-financial-red/10 dark:bg-financial-red/10 text-financial-red dark:text-financial-red',
+    yellow: 'bg-financial-yellow/10 dark:bg-financial-yellow/10 text-financial-yellow dark:text-financial-yellow',
+    purple: 'bg-purple-500/10 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400',
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+    <div className="glass-panel p-6 group hover:translate-y-[-2px] transition-transform duration-300">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             {title}
           </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+          <p className="text-3xl font-mono font-bold text-gray-900 dark:text-white mt-2 tracking-tight">
             {value}
           </p>
           {subtitle && (
@@ -41,7 +41,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
             </p>
           )}
         </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
+        <div className={`p-4 rounded-xl transition-colors duration-300 ${colorClasses[color]}`}>
           <Icon className="h-6 w-6" />
         </div>
       </div>

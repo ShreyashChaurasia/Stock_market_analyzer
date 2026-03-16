@@ -18,17 +18,17 @@ export const MarketSummary: React.FC = () => {
     const isPositive = marketData.change >= 0;
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{name}</p>
-        <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-          {marketData.current_price.toLocaleString()}
+      <div className="bg-white dark:bg-brand-dark/50 rounded-lg p-4 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors">
+        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{name}</p>
+        <p className="text-xl font-mono font-bold text-gray-900 dark:text-white mt-1">
+          {marketData.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
-        <div className={`flex items-center space-x-1 mt-1 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+        <div className={`flex items-center space-x-1 mt-2 text-sm font-mono ${isPositive ? 'text-financial-green' : 'text-financial-red'}`}>
           {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span className="text-sm font-medium">
+          <span className="font-medium">
             {isPositive ? '+' : ''}{marketData.change.toFixed(2)}
           </span>
-          <span className="text-sm">
+          <span>
             ({isPositive ? '+' : ''}{marketData.change_percent.toFixed(2)}%)
           </span>
         </div>
@@ -38,10 +38,10 @@ export const MarketSummary: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg shadow-lg p-6 text-white">
-        <div className="flex items-center space-x-2 mb-4">
-          <Globe className="h-6 w-6 animate-pulse" />
-          <h3 className="text-xl font-bold">Loading Market Data...</h3>
+      <div className="glass-panel p-6">
+        <div className="flex items-center space-x-2 mb-4 text-gray-900 dark:text-white">
+          <Globe className="h-6 w-6 animate-pulse text-brand-accent" />
+          <h3 className="text-lg font-bold tracking-tight">Loading Market Data...</h3>
         </div>
       </div>
     );
@@ -52,15 +52,15 @@ export const MarketSummary: React.FC = () => {
   const marketData = data.data;
 
   return (
-    <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg shadow-lg p-6 text-white">
-      <div className="flex items-center justify-between mb-4">
+    <div className="glass-panel p-5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
         <div className="flex items-center space-x-2">
-          <Globe className="h-6 w-6" />
-          <h3 className="text-xl font-bold">Live Market Overview</h3>
+          <Globe className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight uppercase tracking-wider">Live Market Overview</h3>
         </div>
-        <div className="flex items-center space-x-1 text-sm bg-white/20 px-3 py-1 rounded-full">
-          <Clock className="h-4 w-4" />
-          <span>Real-time</span>
+        <div className="flex items-center space-x-1 text-xs font-medium text-brand-accent bg-brand-accent/5 dark:bg-brand-accent/10 px-3 py-1.5 rounded-full border border-brand-accent/20 dark:border-brand-accent/20">
+          <Clock className="h-3 w-3" />
+          <span className="uppercase tracking-wider">Real-time</span>
         </div>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

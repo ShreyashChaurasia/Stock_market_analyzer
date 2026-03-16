@@ -4,7 +4,7 @@ import { Layout } from '../components/Layout';
 import { StockSearch } from '../components/StockSearch';
 import { PredictionCard } from '../components/PredictionCard';
 import { PriceChart } from '../components/PriceChart';
-import { ProbabilityChart } from '../components/probabilityChart';
+import { ProbabilityChart } from '../components/ProbabilityChart';
 import { Watchlist } from '../components/Watchlist';
 import { WatchlistButton } from '../components/WatchlistButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -43,22 +43,22 @@ export const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-5 animate-fade-in">
         {/* Market Summary - Always visible */}
         <MarketSummary />
 
         {/* Hero Section */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            AI-Powered Stock Analysis
+        <div className="text-center py-4">
+          <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
+            AI-Powered Stock <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Analysis</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Get predictions for US and Indian stocks using advanced machine learning
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
+            Professional-grade predictions for US and Indian equities using advanced machine learning models.
           </p>
         </div>
 
         {/* Search Section */}
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <StockSearch onSearch={handleSearch} loading={isLoading} />
         </div>
 
@@ -77,11 +77,9 @@ export const Dashboard: React.FC = () => {
 
         {/* Results Section */}
         {data && !isLoading && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content - 2 columns */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Watchlist Button */}
-              <div className="flex justify-end">
+          <div className="space-y-6">
+            {/* Top Watchlist Button for Symmetry */}
+            <div className="flex justify-end w-full">
                 <WatchlistButton
                   ticker={data.ticker}
                   latestPrice={data.latest_close}
@@ -119,40 +117,44 @@ export const Dashboard: React.FC = () => {
                 />
               </div>
 
-              {/* Prediction Card */}
-              <PredictionCard prediction={data} />
-
-              {/* Charts Row 1 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Main Content - Symmetric Split */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* Left Column (Charts & Models) */}
+              <div className="space-y-6">
+                <PriceChart ticker={data.ticker} period="1mo" />
                 <ProbabilityChart
                   probabilityUp={data.probability_up}
                   probabilityDown={data.probability_down}
                 />
-                <PriceChart ticker={data.ticker} period="1mo" />
+              </div>
+
+              {/* Right Column (Analysis & Technicals) */}
+              <div className="space-y-6">
+                <PredictionCard prediction={data} />
+                <TechnicalIndicators ticker={data.ticker} />
               </div>
             </div>
 
-            {/* Sidebar - 1 column */}
-            <div className="space-y-6">
+            {/* Bottom Section - Watchlist */}
+            <div className="w-full">
               <Watchlist onSelectStock={handleSearch} />
-              <TechnicalIndicators ticker={data.ticker} />
             </div>
           </div>
         )}
 
-        {/* Empty State with Watchlist */}
+        {/* Empty State */}
         {!selectedTicker && !isLoading && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
-                <BarChart3 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  Start Your Analysis
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Enter a stock ticker above to get AI-powered predictions and insights
-                </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-panel p-10 md:p-16 text-center h-full flex flex-col items-center justify-center">
+              <div className="p-4 rounded-full bg-gray-100 dark:bg-brand-surfaceHover mb-6">
+                <BarChart3 className="h-12 w-12 text-brand-accent dark:text-brand-accent" />
               </div>
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
+                Terminal Ready
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">
+                Enter a stock ticker above (e.g., AAPL, RELIANCE.NS) to execute deep analysis.
+              </p>
             </div>
             <div>
               <Watchlist onSelectStock={handleSearch} />
