@@ -1,0 +1,190 @@
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { LineChart as LineChartIcon } from 'lucide-react';
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { stockApi } from '../services/api';
+import type { HistoricalPrice, IndexHistoricalResponse, MarketIndexKey } from '../types/stock';
+import { formatCurrency } from '../utils/market';
+import { INDEX_CONFIG } from '../config/indices';
+
+type IndexPeriod = '1m' | '3m' | '6m' | '1y' | '5y' | 'all';
+
+const PERIOD_OPTIONS: Array<{ label: string; value: IndexPeriod }> = [
+  { label: '1M', value: '1m' },
+  { label: '3M', value: '3m' },
+  { label: '6M', value: '6m' },
+  { label: '1Y', value: '1y' },
+  { label: '5Y', value: '5y' },
+  { label: 'ALL', value: 'all' },
+];
+
+const toChartRows = (rows: HistoricalPrice[]) =>
+  rows.map((item) => ({
+    date: item.date,
+    close: item.close,
+  }));
+
+const formatAxisDate = (dateValue: string, period: IndexPeriod) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  if (period === '5y' || period === '1y' || period === 'all') {
+    return date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+  }
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+interface IndicesChartsProps {
+  selectedIndex: MarketIndexKey | null;
+}
+
+export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) => {
+  const [period, setPeriod] = useState<IndexPeriod>('1m');
+
+  const selectedMeta = selectedIndex
+    ? INDEX_CONFIG.find((item) => item.key === selectedIndex) ?? null
+    : null;
+
+  if (!selectedMeta) {
+    return null;
+  }
+
+  const { data, isLoading, isFetching } = useQuery<IndexHistoricalResponse>({
+    queryKey: ['index-historical', selectedIndex, period],
+    queryFn: () => stockApi.getIndexHistorical(selectedIndex as MarketIndexKey, period),
+    enabled: !!selectedIndex,
+    staleTime: 60000,
+    refetchInterval: 180000,
+  });
+
+  const chartRows = useMemo(() => toChartRows(data?.data ?? []), [data?.data]);
+  const latest = chartRows.at(-1)?.close ?? null;
+  const first = chartRows.at(0)?.close ?? null;
+  const absoluteChange = latest !== null && first !== null ? latest - first : null;
+  const percentChange = absoluteChange !== null && first ? (absoluteChange / first) * 100 : null;
+
+  return (
+    <div className="glass-panel p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <LineChartIcon className="h-5 w-5 text-brand-accent" />
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+            Index Chart
+          </h3>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setPeriod(option.value)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition-all ${
+                period === option.value
+                  ? 'bg-brand-accent text-brand-dark shadow-sm'
+                  : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-200/80 bg-white/80 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+              {selectedMeta.label}
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {data?.name ?? '--'} ({data?.symbol ?? '--'})
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold text-gray-900 dark:text-white">
+              {latest !== null && data ? formatCurrency(latest, data.currency) : '--'}
+            </p>
+            {absoluteChange !== null && percentChange !== null && (
+              <p className={`text-xs font-semibold ${absoluteChange >= 0 ? 'text-financial-green' : 'text-financial-red'}`}>
+                {absoluteChange >= 0 ? '+' : ''}
+                {absoluteChange.toFixed(2)} ({absoluteChange >= 0 ? '+' : ''}
+                {percentChange.toFixed(2)}%)
+              </p>
+            )}
+          </div>
+        </div>
+
+        {isLoading && (
+          <div className="animate-pulse">
+            <div className="h-56 rounded bg-gray-200 dark:bg-gray-700" />
+          </div>
+        )}
+
+        {!isLoading && chartRows.length === 0 && (
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">No chart data available for this index.</p>
+        )}
+
+        {!isLoading && chartRows.length > 0 && (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartRows} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.18} />
+                <XAxis
+                  dataKey="date"
+                  minTickGap={24}
+                  tickFormatter={(value: string) => formatAxisDate(value, period)}
+                  stroke="#64748b"
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748b"
+                  tickLine={false}
+                  axisLine={false}
+                  width={72}
+                  tickFormatter={(value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                />
+                <Tooltip
+                  labelFormatter={(value: string) => new Date(value).toLocaleString()}
+                  formatter={(value: number) => (data ? formatCurrency(value, data.currency) : value)}
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="close"
+                  name={selectedMeta.label}
+                  stroke={selectedMeta.chartColor}
+                  strokeWidth={2.8}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {isFetching && !isLoading && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Refreshing chart...</p>
+        )}
+      </div>
+    </div>
+  );
+};

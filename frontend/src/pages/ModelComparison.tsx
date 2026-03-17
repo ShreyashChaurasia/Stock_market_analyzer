@@ -206,7 +206,7 @@ export const ModelComparison: React.FC = () => {
                 </li>
                 <li className="flex items-center space-x-3">
                   <span className="text-brand-accent text-lg">✓</span>
-                  <span>Visual radar chart for easy comparison</span>
+                  <span>Visual bar charts for easy model-by-metric comparison</span>
                 </li>
               </ul>
             </div>

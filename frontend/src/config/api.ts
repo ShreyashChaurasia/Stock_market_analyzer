@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
   bestModel: (ticker: string) => `/api/best-model/${ticker}`,
   allModels: '/api/models',
   marketIndices: '/api/market/indices',
+  indexHistorical: (market: string, period: string) => `/api/market/index-historical/${market}?period=${period}`,
   stockInfo: (ticker: string) => `/api/market/stock-info/${ticker}`,
   technicalIndicators: (ticker: string) => `/api/market/technical-indicators/${ticker}`,
   historicalPrices: (ticker: string, period: string) => `/api/market/historical-prices/${ticker}?period=${period}`,

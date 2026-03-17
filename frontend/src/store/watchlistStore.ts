@@ -7,6 +7,8 @@ interface WatchlistItem {
   latestPrice?: number;
   prediction?: string;
   currency?: string;
+  change?: number;
+  changePercent?: number;
 }
 
 interface WatchlistStore {

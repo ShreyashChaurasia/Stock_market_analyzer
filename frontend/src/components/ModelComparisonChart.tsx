@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  Legend,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Bar,
   ResponsiveContainer,
+  Legend,
   Tooltip,
 } from 'recharts';
 
@@ -24,12 +24,18 @@ interface ModelComparisonChartProps {
 }
 
 export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ models }) => {
-  const metrics = ['accuracy', 'precision', 'recall', 'f1_score', 'auc'];
-  
-  const data = metrics.map(metric => {
-    const dataPoint: Record<string, number | string> = { metric: metric.toUpperCase() };
-    models.forEach(model => {
-      dataPoint[model.model] = (model[metric as keyof ModelMetrics] as number) * 100;
+  const metrics: Array<{ key: keyof Omit<ModelMetrics, 'model'>; label: string }> = [
+    { key: 'accuracy', label: 'Accuracy' },
+    { key: 'precision', label: 'Precision' },
+    { key: 'recall', label: 'Recall' },
+    { key: 'f1_score', label: 'F1 Score' },
+    { key: 'auc', label: 'AUC' },
+  ];
+
+  const data = metrics.map(({ key, label }) => {
+    const dataPoint: Record<string, number | string> = { metric: label };
+    models.forEach((model) => {
+      dataPoint[model.model] = (model[key] as number) * 100;
     });
     return dataPoint;
   });
@@ -42,11 +48,19 @@ export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ mode
         Model Performance Comparison
       </h3>
       <ResponsiveContainer width="100%" height={400}>
-        <RadarChart data={data}>
-          <PolarGrid stroke="#374151" />
-          <PolarAngleAxis dataKey="metric" stroke="#6b7280" />
-          <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#6b7280" />
+        <BarChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+          <XAxis dataKey="metric" stroke="#6b7280" tickLine={false} axisLine={false} />
+          <YAxis
+            domain={[0, 100]}
+            tickFormatter={(value: number) => `${value}%`}
+            stroke="#6b7280"
+            tickLine={false}
+            axisLine={false}
+            width={44}
+          />
           <Tooltip
+            formatter={(value: number | undefined) => value !== undefined ? `${value.toFixed(2)}%` : '0%'}
             contentStyle={{
               backgroundColor: '#1f2937',
               border: 'none',
@@ -56,16 +70,15 @@ export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ mode
           />
           <Legend />
           {models.map((model, index) => (
-            <Radar
+            <Bar
               key={model.model}
               name={model.model}
               dataKey={model.model}
-              stroke={colors[index % colors.length]}
               fill={colors[index % colors.length]}
-              fillOpacity={0.3}
+              radius={[4, 4, 0, 0]}
             />
           ))}
-        </RadarChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

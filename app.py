@@ -298,7 +298,6 @@ async def get_market_indices():
     Get real-time data for major market indices
     
     Returns current prices and changes for:
-    - S&P 500
     - NASDAQ
     - Dow Jones
     - NIFTY 50
@@ -404,7 +403,7 @@ async def get_historical_prices(
     
     Args:
         ticker: Stock ticker symbol
-        period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y)
+        period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y, all)
         
     Returns:
         Historical prices with moving averages
@@ -427,6 +426,43 @@ async def get_historical_prices(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch historical prices: {str(e)}"
+        )
+
+
+@app.get("/api/market/index-historical/{market}", tags=["Market Data"])
+async def get_index_historical_prices(
+    market: str,
+    period: str = "1m"
+):
+    """
+    Get historical chart data for supported market indices.
+
+    Args:
+        market: Index key (nasdaq, dowjones, nifty50, sensex)
+            aliases "nse" and "bse" are also supported
+        period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y, all)
+    """
+    logger.info(f"Fetching index historical prices for {market} (period: {period})")
+
+    try:
+        prices = market_service.get_index_historical_prices(market, period)
+        return {
+            "success": True,
+            "market": prices["market"],
+            "name": prices["name"],
+            "symbol": prices["symbol"],
+            "period": prices["period"],
+            "interval": prices["interval"],
+            "currency": prices["currency"],
+            "data": prices["data"],
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error fetching index historical prices: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch index historical prices: {str(e)}"
         )
 
 # Entry Point

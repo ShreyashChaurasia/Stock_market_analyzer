@@ -55,13 +55,13 @@ export interface MarketIndex {
   timestamp: string;
 }
 
-export interface MarketIndices {
-  sp500: MarketIndex;
-  nasdaq: MarketIndex;
-  dowjones: MarketIndex;
-  nifty50: MarketIndex;
-  sensex?: MarketIndex;
-}
+export type MarketIndexKey =
+  | 'nasdaq'
+  | 'dowjones'
+  | 'nifty50'
+  | 'sensex';
+
+export type MarketIndices = Partial<Record<MarketIndexKey, MarketIndex>>;
 
 export interface StockInfo {
   ticker: string;
@@ -121,6 +121,16 @@ export interface HistoricalPrice {
 
 export interface HistoricalPricesResponse {
   ticker: string;
+  period: string;
+  interval: string;
+  currency: string;
+  data: HistoricalPrice[];
+}
+
+export interface IndexHistoricalResponse {
+  market: MarketIndexKey | 'nse' | 'bse';
+  name: string;
+  symbol: string;
   period: string;
   interval: string;
   currency: string;

@@ -18,13 +18,19 @@ class MarketDataService:
     
     # Major market indices
     INDICES = {
-        'sp500': '^GSPC',
         'nasdaq': '^IXIC',
         'dowjones': '^DJI',
         'nifty50': '^NSEI',
         'sensex': '^BSESN',
-        'ftse': '^FTSE',
-        'dax': '^GDAXI',
+    }
+    INDEX_CHART_SYMBOLS = {
+        'nasdaq': {'symbol': '^IXIC', 'name': 'NASDAQ'},
+        'dowjones': {'symbol': '^DJI', 'name': 'Dow Jones'},
+        'nifty50': {'symbol': '^NSEI', 'name': 'NIFTY 50'},
+        'sensex': {'symbol': '^BSESN', 'name': 'SENSEX'},
+        # Backward-compatible aliases
+        'nse': {'symbol': '^NSEI', 'name': 'NIFTY 50'},
+        'bse': {'symbol': '^BSESN', 'name': 'SENSEX'},
     }
 
     PERIOD_CONFIG = {
@@ -35,6 +41,7 @@ class MarketDataService:
         '6m': {'period': '6mo', 'interval': '1d'},
         '1y': {'period': '1y', 'interval': '1d'},
         '5y': {'period': '5y', 'interval': '1wk'},
+        'all': {'period': 'max', 'interval': '1wk'},
     }
 
     @staticmethod
@@ -250,7 +257,7 @@ class MarketDataService:
         
         Args:
             ticker: Stock ticker symbol
-            period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y)
+            period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y, all)
             
         Returns:
             Historical prices plus interval and currency metadata
@@ -303,6 +310,36 @@ class MarketDataService:
                 'currency': self.infer_currency_from_ticker(ticker),
                 'data': [],
             }
+
+    def get_index_historical_prices(self, market: str, period: str = '1m') -> Dict[str, Any]:
+        """
+        Get historical chart data for supported market indices.
+
+        Args:
+            market: Market key (nasdaq, dowjones, nifty50, sensex) or aliases (nse, bse)
+            period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y, all)
+
+        Returns:
+            Historical price payload with index metadata
+        """
+        market_key = market.lower()
+        index_meta = self.INDEX_CHART_SYMBOLS.get(market_key)
+
+        if not index_meta:
+            raise ValueError(
+                "Unsupported market. Use one of: nasdaq, dowjones, nifty50, sensex, nse, bse."
+            )
+
+        history = self.get_historical_prices(index_meta['symbol'], period)
+        return {
+            'market': market_key,
+            'name': index_meta['name'],
+            'symbol': index_meta['symbol'],
+            'period': period,
+            'interval': history['interval'],
+            'currency': history['currency'],
+            'data': history['data'],
+        }
 
 
 # Global service instance

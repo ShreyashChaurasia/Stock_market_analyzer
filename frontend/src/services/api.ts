@@ -9,6 +9,8 @@ import type {
   StockInfo,
   TechnicalIndicators,
   HistoricalPricesResponse,
+  IndexHistoricalResponse,
+  MarketIndexKey,
 } from '../types/stock';
 
 const api = axios.create({
@@ -72,6 +74,14 @@ export const stockApi = {
 
   getHistoricalPrices: async (ticker: string, period: string = '1m'): Promise<HistoricalPricesResponse> => {
     const response = await api.get(API_ENDPOINTS.historicalPrices(ticker, period));
+    return response.data;
+  },
+
+  getIndexHistorical: async (
+    market: MarketIndexKey | 'nse' | 'bse',
+    period: string = '1m'
+  ): Promise<IndexHistoricalResponse> => {
+    const response = await api.get(API_ENDPOINTS.indexHistorical(market, period));
     return response.data;
   },
 };

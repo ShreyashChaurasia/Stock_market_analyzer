@@ -1,77 +1,79 @@
-# 📈 Stock Market Analyzer
+# Stock Market Analyzer
 
-A full-stack stock market analysis tool with ML-powered price movement predictions.
+Full-stack stock analysis platform with machine-learning predictions, technical indicators, and interactive market dashboards.
 
----
+## What It Does
 
-## Overview
+- Predicts next-day direction (`UP` / `DOWN`) with model confidence
+- Trains and compares multiple ML models per ticker
+- Visualizes stock history with candlestick/line charts and moving averages
+- Shows live global indices with click-to-view historical charts for:
+  - NASDAQ, Dow Jones
+  - NSE (`NIFTY 50`), BSE (`SENSEX`)
+- Provides technical indicators (RSI, MACD, SMA, Bollinger Bands)
 
-- **Backend**: FastAPI REST API with multiple ML models (Logistic Regression, Random Forest, XGBoost, Gradient Boosting)
-- **Frontend**: React + TypeScript dashboard with interactive charts
-- **Data**: Pulled live from Yahoo Finance via `yfinance`
-- **Indicators**: RSI, MACD, SMA, Bollinger Bands, and more
+## Tech Stack
 
----
-
-## Features
-
-- 🔮 **Stock Price Prediction** — ML models predict the probability of a stock going UP the next trading day
-- 🤖 **Model Training & Comparison** — Train and compare multiple model types per ticker
-- 📊 **Technical Indicators** — Real-time RSI, MACD, Bollinger Bands with buy/sell signals
-- 🌐 **Market Indices** — Live data for S&P 500, NASDAQ, Dow Jones, NIFTY 50, SENSEX
-- 📁 **Model Registry** — Track, compare, and manage trained model versions
-
----
+- Backend: FastAPI, scikit-learn, XGBoost, yfinance, pandas
+- Frontend: React 19, TypeScript, Vite, Tailwind CSS
+- Charts: lightweight-charts, Recharts
+- State/Data: Zustand, TanStack Query
 
 ## Project Structure
 
-```
+```text
 Stock_market_analyzer/
-├── app.py              # FastAPI app entry point
+├── app.py
 ├── src/
-│   ├── core/           # Data fetching, indicators, feature engineering
-│   ├── models/         # ML model definitions
-│   ├── pipelines/      # Training & inference pipelines
-│   ├── services/       # Model & market data services
-│   ├── registry/       # Model versioning & registry
-│   ├── schemas/        # Pydantic request/response schemas
-│   └── middleware/     # Error handling & logging
-├── frontend/           # React + Vite frontend
-├── model_artifacts/    # Saved trained models
-└── configs/            # App configuration
+│   ├── core/
+│   ├── models/
+│   ├── pipelines/
+│   ├── services/
+│   ├── registry/
+│   ├── schemas/
+│   └── middleware/
+├── frontend/
+├── configs/
+├── data/
+├── models/
+└── outputs/
 ```
 
----
+## Backend Setup
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-
-### Backend Setup
+### 1) Create and activate a virtual environment
 
 ```bash
-# Create and activate virtual environment
 python -m venv venv
-venv\Scripts\activate        # Windows
-source venv/bin/activate     # Linux/macOS
+venv\Scripts\activate
+```
 
-# Install dependencies
+On Linux/macOS:
+
+```bash
+source venv/bin/activate
+```
+
+### 2) Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-# Configure environment variables
-cp .env.example .env         # Edit as needed
+### 3) Configure environment variables
 
-# Run the API server
+This repo includes a `.env` file. Update it for your environment (host/port, logging, model dirs, etc.) before running in production.
+
+### 4) Run backend
+
+```bash
 python app.py
 ```
 
-API will be available at `http://localhost:8000`  
-Interactive docs: `http://localhost:8000/docs`
+API base URL: `http://localhost:8000`  
+Docs: `http://localhost:8000/docs`
 
-### Frontend Setup
+## Frontend Setup
 
 ```bash
 cd frontend
@@ -79,41 +81,46 @@ npm install
 npm run dev
 ```
 
-Frontend will be available at `http://localhost:5173`
+Frontend URL: `http://localhost:5173`
 
----
-
-## API Endpoints
+## Main API Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET`  | `/api/health` | Health check |
+|---|---|---|
+| `GET` | `/api/health` | Service health |
 | `POST` | `/api/predict` | Predict stock movement |
-| `POST` | `/api/train-model` | Train a specific model |
-| `POST` | `/api/compare-models` | Train & compare all models |
-| `GET`  | `/api/models` | List all trained models |
-| `GET`  | `/api/best-model/{ticker}` | Get best model for a ticker |
-| `GET`  | `/api/market/indices` | Live market indices |
-| `GET`  | `/api/market/stock-info/{ticker}` | Stock details & fundamentals |
-| `GET`  | `/api/market/technical-indicators/{ticker}` | Technical indicators |
-| `GET`  | `/api/market/historical-prices/{ticker}` | Historical price data |
+| `POST` | `/api/train-model` | Train one model for a ticker |
+| `POST` | `/api/compare-models` | Train and compare all models |
+| `GET` | `/api/models` | List all trained models |
+| `GET` | `/api/best-model/{ticker}` | Best model by metric |
+| `GET` | `/api/model-versions/{ticker}` | Model versions for a ticker |
+| `GET` | `/api/market/indices` | Live market indices snapshot |
+| `GET` | `/api/market/historical-prices/{ticker}` | Historical OHLC + MAs for stocks |
+| `GET` | `/api/market/index-historical/{market}` | Historical index data for supported index keys |
+| `GET` | `/api/market/stock-info/{ticker}` | Stock fundamentals and quote details |
+| `GET` | `/api/market/technical-indicators/{ticker}` | RSI, MACD, SMA, Bollinger Bands |
 
----
+### Index Historical Endpoint
 
-## Tech Stack
+`GET /api/market/index-historical/{market}?period=1m`
 
-| Layer | Technology |
-|-------|------------|
-| Backend | FastAPI, Uvicorn, Pydantic |
-| ML | scikit-learn, XGBoost |
-| Data | yfinance, pandas, numpy |
-| Indicators | `ta` library |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS |
-| Charts | Recharts |
-| State | Zustand, TanStack Query |
+- `market`: `nasdaq`, `dowjones`, `nifty50`, `sensex`
+- aliases: `nse` (for `nifty50`) and `bse` (for `sensex`)
+- `period`: `1d`, `1w`, `1m`, `3m`, `6m`, `1y`, `5y`, `all`
+- `period`: `1d`, `1w`, `1m`, `3m`, `6m`, `1y`, `5y`
 
----
+Example:
+
+```bash
+curl "http://localhost:8000/api/market/index-historical/dowjones?period=6m"
+```
+
+## Notes
+
+- Data comes from Yahoo Finance and may vary by market hours.
+- Some indicators require enough history to populate (for example SMA windows).
+- First request for a ticker can be slower because model/data pipelines need to initialize.
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT License. See [LICENSE](LICENSE).

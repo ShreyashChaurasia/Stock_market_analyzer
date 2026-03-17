@@ -11,16 +11,21 @@ import { ErrorAlert } from '../components/ErrorAlert';
 import { StatsCard } from '../components/StatsCard';
 import { TechnicalIndicators } from '../components/TechnicalIndicators';
 import { MarketSummary } from '../components/MarketSummary';
+import { IndicesCharts } from '../components/IndicesCharts';
 import { StockOverview } from '../components/StockOverview';
 import { stockApi } from '../services/api';
 import type { PredictionResponse, StockInfo } from '../types/stock';
+import type { MarketIndexKey } from '../types/stock';
 import { useWatchlistStore } from '../store/watchlistStore';
 import { TrendingUp, Landmark, Target, BarChart3, Activity, Scale } from 'lucide-react';
 import { formatCompactCurrency, formatCurrency, formatLargeNumber, inferCurrencyFromTicker } from '../utils/market';
 
 export const Dashboard: React.FC = () => {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<MarketIndexKey | null>(null);
+  const [shouldScrollToStockInfo, setShouldScrollToStockInfo] = useState(false);
   const { updateWatchlistItem } = useWatchlistStore();
+  const stockInfoRef = React.useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery<PredictionResponse>({
     queryKey: ['prediction', selectedTicker],
@@ -40,33 +45,66 @@ export const Dashboard: React.FC = () => {
     setSelectedTicker(ticker);
   };
 
+  const handleIndexSelect = (indexKey: MarketIndexKey) => {
+    setSelectedIndex((current) => (current === indexKey ? null : indexKey));
+  };
+
+  const handleWatchlistSelect = (ticker: string) => {
+    setSelectedTicker(ticker);
+    setShouldScrollToStockInfo(true);
+  };
+
   React.useEffect(() => {
     if (data && selectedTicker) {
+      const previousClose = stockInfoData?.data?.previous_close;
+      const hasPreviousClose = previousClose !== null && previousClose !== undefined && previousClose !== 0;
+      const change = hasPreviousClose ? data.latest_close - previousClose : undefined;
+      const changePercent = hasPreviousClose ? (change! / previousClose) * 100 : undefined;
+
       updateWatchlistItem(selectedTicker, {
         latestPrice: data.latest_close,
         prediction: data.prediction,
         currency: data.currency,
+        change,
+        changePercent,
       });
     }
-  }, [data, selectedTicker, updateWatchlistItem]);
+  }, [data, selectedTicker, stockInfoData, updateWatchlistItem]);
+
+  React.useEffect(() => {
+    if (!shouldScrollToStockInfo || !data || !stockInfoRef.current) {
+      return;
+    }
+
+    stockInfoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setShouldScrollToStockInfo(false);
+  }, [data, shouldScrollToStockInfo]);
 
   const stockInfo = stockInfoData?.data;
   const resolvedCurrency = stockInfo?.currency ?? data?.currency ?? inferCurrencyFromTicker(selectedTicker);
   const locale = resolvedCurrency === 'INR' ? 'en-IN' : 'en-US';
+  const previousClose = stockInfo?.previous_close;
+  const hasPreviousClose = previousClose !== null && previousClose !== undefined && previousClose !== 0;
+  const watchlistChange = data && hasPreviousClose ? data.latest_close - previousClose : undefined;
+  const watchlistChangePercent =
+    data && hasPreviousClose && watchlistChange !== undefined
+      ? (watchlistChange / previousClose) * 100
+      : undefined;
 
   return (
     <Layout>
       <div className="space-y-5 animate-fade-in">
         {/* Market Summary - Always visible */}
-        <MarketSummary />
+        <MarketSummary selectedIndex={selectedIndex} onSelectIndex={handleIndexSelect} />
+        {selectedIndex && <IndicesCharts selectedIndex={selectedIndex} />}
 
         {/* Hero Section */}
         <div className="text-center py-4">
           <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
-            AI-Powered Stock <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Analysis</span>
+            ML-Powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Stock Analysis</span>
           </h1>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
-            Professional-grade predictions for US and Indian equities using advanced machine learning models.
+            Real-time analysis and machine-learning forecasts for US and Indian equities.
           </p>
         </div>
 
@@ -90,7 +128,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Results Section */}
         {data && !isLoading && (
-          <div className="space-y-6">
+          <div ref={stockInfoRef} className="space-y-6">
             {/* Top Watchlist Button for Symmetry */}
             <div className="flex justify-end w-full">
                 <WatchlistButton
@@ -98,6 +136,8 @@ export const Dashboard: React.FC = () => {
                   latestPrice={data.latest_close}
                   prediction={data.prediction}
                   currency={resolvedCurrency}
+                  change={watchlistChange}
+                  changePercent={watchlistChangePercent}
                 />
               </div>
 
@@ -152,8 +192,9 @@ export const Dashboard: React.FC = () => {
 
             {/* Main Content */}
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <div className="xl:col-span-2">
+              <div className="space-y-6 xl:col-span-2">
                 <PriceChart ticker={data.ticker} currency={resolvedCurrency} />
+                <TechnicalIndicators ticker={data.ticker} currency={resolvedCurrency} />
               </div>
 
               <div className="space-y-6">
@@ -162,11 +203,9 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <TechnicalIndicators ticker={data.ticker} currency={resolvedCurrency} />
-
             {/* Bottom Section - Watchlist */}
             <div className="w-full">
-              <Watchlist onSelectStock={handleSearch} />
+              <Watchlist onSelectStock={handleWatchlistSelect} />
             </div>
           </div>
         )}
@@ -186,7 +225,7 @@ export const Dashboard: React.FC = () => {
               </p>
             </div>
             <div>
-              <Watchlist onSelectStock={handleSearch} />
+              <Watchlist onSelectStock={handleWatchlistSelect} />
             </div>
           </div>
         )}

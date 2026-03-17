@@ -16,13 +16,21 @@ export const formatCurrency = (
   }
 
   const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 2,
-    ...options,
-  }).format(value);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+      ...options,
+    }).format(value);
+  } catch {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 2,
+      ...options,
+    }).format(value);
+  }
 };
 
 export const formatCompactCurrency = (value: number | null | undefined, currency: string = 'USD') =>

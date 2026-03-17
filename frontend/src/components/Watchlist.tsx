@@ -65,10 +65,19 @@ export const Watchlist: React.FC<WatchlistProps> = ({ onSelectStock }) => {
                   </span>
                 )}
               </div>
-              {item.latestPrice && (
-                <p className="text-sm font-mono text-gray-500 dark:text-gray-400 mt-1">
-                  {formatCurrency(item.latestPrice, item.currency ?? inferCurrencyFromTicker(item.ticker))}
-                </p>
+              {item.latestPrice !== undefined && (
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-mono text-gray-500 dark:text-gray-400">
+                    {formatCurrency(item.latestPrice, item.currency ?? inferCurrencyFromTicker(item.ticker))}
+                  </p>
+                  {item.change !== undefined && item.changePercent !== undefined && (
+                    <p className={`text-xs font-semibold ${item.change >= 0 ? 'text-financial-green' : 'text-financial-red'}`}>
+                      {item.change >= 0 ? '+' : ''}
+                      {item.change.toFixed(2)} ({item.change >= 0 ? '+' : ''}
+                      {item.changePercent.toFixed(2)}%)
+                    </p>
+                  )}
+                </div>
               )}
             </button>
             <button
