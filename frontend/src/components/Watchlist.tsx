@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 import { useWatchlistStore } from '../store/watchlistStore';
+import { formatCurrency, inferCurrencyFromTicker } from '../utils/market';
 
 interface WatchlistProps {
   onSelectStock: (ticker: string) => void;
@@ -66,7 +67,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ onSelectStock }) => {
               </div>
               {item.latestPrice && (
                 <p className="text-sm font-mono text-gray-500 dark:text-gray-400 mt-1">
-                  ${item.latestPrice.toFixed(2)}
+                  {formatCurrency(item.latestPrice, item.currency ?? inferCurrencyFromTicker(item.ticker))}
                 </p>
               )}
             </button>

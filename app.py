@@ -397,14 +397,14 @@ async def get_technical_indicators(ticker: str):
 @app.get("/api/market/historical-prices/{ticker}", tags=["Market Data"])
 async def get_historical_prices(
     ticker: str,
-    period: str = "1mo"
+    period: str = "1m"
 ):
     """
     Get historical price data for charting
     
     Args:
         ticker: Stock ticker symbol
-        period: Time period (1mo, 3mo, 6mo, 1y, 2y, 5y)
+        period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y)
         
     Returns:
         Historical prices with moving averages
@@ -418,7 +418,9 @@ async def get_historical_prices(
             "success": True,
             "ticker": ticker.upper(),
             "period": period,
-            "data": prices
+            "interval": prices["interval"],
+            "currency": prices["currency"],
+            "data": prices["data"],
         }
     except Exception as e:
         logger.error(f"Error fetching historical prices: {str(e)}")

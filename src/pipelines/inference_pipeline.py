@@ -8,6 +8,12 @@ import os
 from datetime import datetime
 
 
+def infer_currency_from_ticker(ticker: str) -> str:
+    if ticker.endswith((".NS", ".BO")):
+        return "INR"
+    return "USD"
+
+
 def run_inference_pipeline(ticker: str, start=None, end=None):
     """
     Run complete inference pipeline for stock prediction
@@ -42,31 +48,31 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
             f"Insufficient data for {ticker}: {len(df)} rows. Need at least 100 days."
         )
     
-    print(f"   → Data range: {df.index[0].date()} to {df.index[-1].date()}")
-    print(f"   → Total rows: {len(df)}\n")
+    print(f"   Data range: {df.index[0].date()} to {df.index[-1].date()}")
+    print(f"   Total rows: {len(df)}\n")
 
     # Step 2: Add technical indicators
     print("Step 2/7: Adding technical indicators...")
     df = add_indicators(df)
-    print(f"   → Added: SMA, EMA, RSI, MACD, Bollinger Bands\n")
+    print("   Added: SMA, EMA, RSI, MACD, Bollinger Bands\n")
 
     # Step 3: Add ML features
     print("Step 3/7: Engineering ML features...")
     df = add_ml_features(df)
-    print(f"   → Added: Returns, Volatility, Trend features\n")
+    print("   Added: Returns, Volatility, Trend features\n")
 
     # Step 4: Create target variable (UP/DOWN next day)
     print("Step 4/7: Creating target variable...")
     df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
-    print(f"   → Target: 1 = Price UP next day, 0 = Price DOWN next day\n")
+    print("   Target: 1 = Price UP next day, 0 = Price DOWN next day\n")
 
     # Step 5: Clean data
     print("Step 5/7: Cleaning data...")
     rows_before = len(df)
     df = df.dropna()
     rows_after = len(df)
-    print(f"   → Removed {rows_before - rows_after} rows with NaN values")
-    print(f"   → Clean data: {rows_after} rows\n")
+    print(f"   Removed {rows_before - rows_after} rows with NaN values")
+    print(f"   Clean data: {rows_after} rows\n")
 
     if len(df) < 50:
         raise ValueError(
@@ -76,9 +82,9 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     # Step 6: Train model
     print("Step 6/7: Training ML model...")
     auc = train_probability_model(df, ticker)
-    print(f"   → Model: Logistic Regression")
-    print(f"   → Test AUC Score: {auc:.4f}")
-    print(f"   → Model saved to: models/{ticker}_model.pkl\n")
+    print("   Model: Logistic Regression")
+    print(f"   Test AUC Score: {auc:.4f}")
+    print(f"   Model saved to: models/{ticker}_model.pkl\n")
 
     # Step 7: Get latest prediction
     print("Step 7/7: Making prediction...")
@@ -88,9 +94,9 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     prediction_direction = "UP" if probability_up > 0.5 else "DOWN"
     confidence = abs(probability_up - 0.5) * 2  # Scale to 0-1
     
-    print(f"   → Probability UP: {probability_up:.2%}")
-    print(f"   → Prediction: {prediction_direction}")
-    print(f"   → Confidence: {confidence:.2%}\n")
+    print(f"   Probability UP: {probability_up:.2%}")
+    print(f"   Prediction: {prediction_direction}")
+    print(f"   Confidence: {confidence:.2%}\n")
 
     # Prepare output
     latest_date = df.index[-1].strftime("%Y-%m-%d")
@@ -101,6 +107,7 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
         "prediction_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latest_data_date": latest_date,
         "latest_close": round(latest_close, 2),
+        "currency": infer_currency_from_ticker(ticker),
         "probability_up": round(probability_up, 4),
         "probability_down": round(1 - probability_up, 4),
         "prediction": "UP" if probability_up > 0.5 else "DOWN",
@@ -117,14 +124,14 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     with open(output_path, "w") as f:
         json.dump(result, f, indent=4)
     
-    print(f"💾 Results saved to: {output_path}")
+    print(f"Saved results to: {output_path}")
     
     # Print summary
     print(f"\n{'='*60}")
     print(f"PREDICTION COMPLETE")
     print(f"{'='*60}")
     print(f"Ticker: {ticker}")
-    print(f"Latest Price: ${latest_close:.2f}")
+    print(f"Latest Price: {infer_currency_from_ticker(ticker)} {latest_close:.2f}")
     print(f"Prediction: {result['prediction']} with {result['confidence_percent']} confidence")
     print(f"Interpretation: {result['interpretation']}")
     print(f"{'='*60}\n")

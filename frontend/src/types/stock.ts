@@ -10,6 +10,7 @@ export interface PredictionResponse {
   prediction_date: string;
   latest_data_date: string;
   latest_close: number;
+  currency: string;
   probability_up: number;
   probability_down: number;
   prediction: string;
@@ -67,14 +68,22 @@ export interface StockInfo {
   company_name: string;
   sector: string;
   industry: string;
+  currency: string;
+  exchange: string | null;
   current_price: number;
+  previous_close: number | null;
+  open_price: number | null;
+  day_high: number | null;
+  day_low: number | null;
   market_cap: number;
+  enterprise_value: number | null;
   pe_ratio: number;
   dividend_yield: number;
   high_52week: number;
   low_52week: number;
   avg_volume: number;
   current_volume: number;
+  shares_outstanding: number | null;
   beta: number;
   timestamp: string;
 }
@@ -101,8 +110,19 @@ export interface TechnicalIndicators {
 
 export interface HistoricalPrice {
   date: string;
+  open: number;
+  high: number;
+  low: number;
   close: number;
   sma_20: number | null;
   sma_50: number | null;
   volume: number;
+}
+
+export interface HistoricalPricesResponse {
+  ticker: string;
+  period: string;
+  interval: string;
+  currency: string;
+  data: HistoricalPrice[];
 }

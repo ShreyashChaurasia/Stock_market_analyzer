@@ -1,7 +1,15 @@
 import axios from 'axios';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
-import type { PredictionRequest, PredictionResponse, ModelVersion, HealthResponse } from '../types/stock';
-import type { MarketIndices, StockInfo, TechnicalIndicators, HistoricalPrice } from '../types/stock';
+import type {
+  PredictionRequest,
+  PredictionResponse,
+  ModelVersion,
+  HealthResponse,
+  MarketIndices,
+  StockInfo,
+  TechnicalIndicators,
+  HistoricalPricesResponse,
+} from '../types/stock';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -62,7 +70,7 @@ export const stockApi = {
     return response.data;
   },
 
-  getHistoricalPrices: async (ticker: string, period: string = '1mo'): Promise<{ data: HistoricalPrice[] }> => {
+  getHistoricalPrices: async (ticker: string, period: string = '1m'): Promise<HistoricalPricesResponse> => {
     const response = await api.get(API_ENDPOINTS.historicalPrices(ticker, period));
     return response.data;
   },

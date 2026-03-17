@@ -27,7 +27,7 @@ export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ mode
   const metrics = ['accuracy', 'precision', 'recall', 'f1_score', 'auc'];
   
   const data = metrics.map(metric => {
-    const dataPoint: any = { metric: metric.toUpperCase() };
+    const dataPoint: Record<string, number | string> = { metric: metric.toUpperCase() };
     models.forEach(model => {
       dataPoint[model.model] = (model[metric as keyof ModelMetrics] as number) * 100;
     });

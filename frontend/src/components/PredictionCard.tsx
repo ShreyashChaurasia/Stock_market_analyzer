@@ -1,12 +1,14 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Activity, Calendar } from 'lucide-react';
 import type { PredictionResponse } from '../types/stock';
+import { formatCurrency } from '../utils/market';
 
 interface PredictionCardProps {
   prediction: PredictionResponse;
+  currency: string;
 }
 
-export const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) => {
+export const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, currency }) => {
   const isUp = prediction.prediction === 'UP';
   const confidencePercent = (prediction.confidence * 100).toFixed(1);
 
@@ -38,7 +40,7 @@ export const PredictionCard: React.FC<PredictionCardProps> = ({ prediction }) =>
         <div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Current Price</p>
           <p className="text-3xl font-mono font-bold text-gray-900 dark:text-white tracking-tight">
-            ${prediction.latest_close.toFixed(2)}
+            {formatCurrency(prediction.latest_close, currency)}
           </p>
         </div>
         <div>

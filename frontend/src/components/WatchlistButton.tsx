@@ -6,12 +6,14 @@ interface WatchlistButtonProps {
   ticker: string;
   latestPrice?: number;
   prediction?: string;
+  currency?: string;
 }
 
 export const WatchlistButton: React.FC<WatchlistButtonProps> = ({
   ticker,
   latestPrice,
   prediction,
+  currency,
 }) => {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, updateWatchlistItem } =
     useWatchlistStore();
@@ -23,8 +25,8 @@ export const WatchlistButton: React.FC<WatchlistButtonProps> = ({
       removeFromWatchlist(ticker);
     } else {
       addToWatchlist(ticker);
-      if (latestPrice || prediction) {
-        updateWatchlistItem(ticker, { latestPrice, prediction });
+      if (latestPrice !== undefined || prediction || currency) {
+        updateWatchlistItem(ticker, { latestPrice, prediction, currency });
       }
     }
   };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Activity, BarChart3, Home } from 'lucide-react';
+import { TrendingUp, BarChart3, Home } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {

@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { stockApi } from '../services/api';
 import type { TechnicalIndicators as TechnicalIndicatorsType } from '../types/stock';
+import { formatCurrency } from '../utils/market';
 
 interface TechnicalIndicatorsProps {
   ticker: string;
+  currency: string;
 }
 
-export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker }) => {
+export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker, currency }) => {
   const { data, isLoading } = useQuery<{ data: TechnicalIndicatorsType }>({
     queryKey: ['technical-indicators', ticker],
     queryFn: () => stockApi.getTechnicalIndicators(ticker),
@@ -69,7 +71,7 @@ export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker
     }] : []),
     {
       name: 'Bollinger Bands',
-      value: `${indicators.bollinger_bands.lower.toFixed(2)} - ${indicators.bollinger_bands.upper.toFixed(2)}`,
+      value: `${formatCurrency(indicators.bollinger_bands.lower, currency)} - ${formatCurrency(indicators.bollinger_bands.upper, currency)}`,
       signal: indicators.bollinger_bands.signal,
     },
   ];
@@ -93,7 +95,11 @@ export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker
                 {indicator.name}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {typeof indicator.value === 'number' ? indicator.value.toFixed(2) : indicator.value}
+                {typeof indicator.value === 'number' && indicator.name !== 'RSI (14)' && indicator.name !== 'MACD'
+                  ? formatCurrency(indicator.value, currency)
+                  : typeof indicator.value === 'number'
+                    ? indicator.value.toFixed(2)
+                    : indicator.value}
               </p>
             </div>
             <div className={`flex items-center space-x-1 px-3 py-1 rounded-full ${getSignalColor(indicator.signal)}`}>

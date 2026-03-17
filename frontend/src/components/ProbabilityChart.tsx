@@ -59,7 +59,7 @@ export const ProbabilityChart: React.FC<ProbabilityChartProps> = ({
                 color: '#fff',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Probability']}
+              formatter={(value: number | string) => [`${Number(value).toFixed(2)}%`, 'Probability']}
               cursor={{ fill: '#27272A', opacity: 0.4 }}
             />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />

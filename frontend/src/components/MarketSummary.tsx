@@ -2,7 +2,36 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Globe, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import { stockApi } from '../services/api';
-import type { MarketIndices } from '../types/stock';
+import type { MarketIndex, MarketIndices } from '../types/stock';
+
+interface IndexCardProps {
+  name: string;
+  marketData?: MarketIndex;
+}
+
+const IndexCard: React.FC<IndexCardProps> = ({ name, marketData }) => {
+  if (!marketData) return null;
+
+  const isPositive = marketData.change >= 0;
+
+  return (
+    <div className="bg-white dark:bg-brand-dark/50 rounded-lg p-4 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{name}</p>
+      <p className="text-xl font-mono font-bold text-gray-900 dark:text-white mt-1">
+        {marketData.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </p>
+      <div className={`flex items-center space-x-1 mt-2 text-sm font-mono ${isPositive ? 'text-financial-green' : 'text-financial-red'}`}>
+        {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+        <span className="font-medium">
+          {isPositive ? '+' : ''}{marketData.change.toFixed(2)}
+        </span>
+        <span>
+          ({isPositive ? '+' : ''}{marketData.change_percent.toFixed(2)}%)
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export const MarketSummary: React.FC = () => {
   const { data, isLoading } = useQuery<{ data: MarketIndices }>({
@@ -11,30 +40,6 @@ export const MarketSummary: React.FC = () => {
     refetchInterval: 60000, // Refresh every minute
     staleTime: 30000, // Consider data stale after 30 seconds
   });
-
-  const IndexCard = ({ name, marketData }: { name: string; marketData: any }) => {
-    if (!marketData) return null;
-
-    const isPositive = marketData.change >= 0;
-
-    return (
-      <div className="bg-white dark:bg-brand-dark/50 rounded-lg p-4 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{name}</p>
-        <p className="text-xl font-mono font-bold text-gray-900 dark:text-white mt-1">
-          {marketData.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
-        <div className={`flex items-center space-x-1 mt-2 text-sm font-mono ${isPositive ? 'text-financial-green' : 'text-financial-red'}`}>
-          {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span className="font-medium">
-            {isPositive ? '+' : ''}{marketData.change.toFixed(2)}
-          </span>
-          <span>
-            ({isPositive ? '+' : ''}{marketData.change_percent.toFixed(2)}%)
-          </span>
-        </div>
-      </div>
-    );
-  };
 
   if (isLoading) {
     return (

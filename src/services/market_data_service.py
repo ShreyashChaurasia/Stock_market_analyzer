@@ -1,11 +1,14 @@
 import pandas as pd
 import yfinance as yf
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Dict, Any
+from datetime import datetime
 
 from src.core.logger import get_logger
+from src.core.yfinance_config import configure_yfinance
 
 logger = get_logger(__name__)
+
+configure_yfinance()
 
 
 class MarketDataService:
@@ -23,6 +26,25 @@ class MarketDataService:
         'ftse': '^FTSE',
         'dax': '^GDAXI',
     }
+
+    PERIOD_CONFIG = {
+        '1d': {'period': '1d', 'interval': '5m'},
+        '1w': {'period': '5d', 'interval': '30m'},
+        '1m': {'period': '1mo', 'interval': '1d'},
+        '3m': {'period': '3mo', 'interval': '1d'},
+        '6m': {'period': '6mo', 'interval': '1d'},
+        '1y': {'period': '1y', 'interval': '1d'},
+        '5y': {'period': '5y', 'interval': '1wk'},
+    }
+
+    @staticmethod
+    def infer_currency_from_ticker(ticker: str) -> str:
+        if ticker.endswith(('.NS', '.BO')):
+            return 'INR'
+        return 'USD'
+
+    def resolve_currency(self, ticker: str, info: Dict[str, Any]) -> str:
+        return info.get('currency') or self.infer_currency_from_ticker(ticker)
     
     def get_index_data(self, index_symbol: str) -> Dict[str, Any]:
         """
@@ -104,8 +126,18 @@ class MarketDataService:
             low_52week = float(year_hist['Low'].min()) if not year_hist.empty else None
             
             # Get volume
-            avg_volume = int(hist['Volume'].mean())
+            average_volume_raw = info.get('averageVolume')
+            if average_volume_raw is None:
+                volume_series = year_hist['Volume'] if not year_hist.empty else hist['Volume']
+                average_volume_raw = volume_series.mean()
+
+            avg_volume = int(average_volume_raw) if pd.notna(average_volume_raw) else 0
             current_volume = int(hist['Volume'].iloc[-1])
+            current_open = float(hist['Open'].iloc[-1]) if 'Open' in hist else None
+            day_high = float(hist['High'].iloc[-1]) if 'High' in hist else None
+            day_low = float(hist['Low'].iloc[-1]) if 'Low' in hist else None
+            previous_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else info.get('previousClose')
+            currency = self.resolve_currency(ticker, info)
             
             return {
                 'ticker': ticker,
@@ -113,13 +145,21 @@ class MarketDataService:
                 'sector': info.get('sector', 'N/A'),
                 'industry': info.get('industry', 'N/A'),
                 'current_price': round(current_price, 2),
+                'currency': currency,
+                'exchange': info.get('fullExchangeName') or info.get('exchange'),
+                'previous_close': round(previous_close, 2) if previous_close is not None else None,
+                'open_price': round(current_open, 2) if current_open is not None else None,
+                'day_high': round(day_high, 2) if day_high is not None else None,
+                'day_low': round(day_low, 2) if day_low is not None else None,
                 'market_cap': info.get('marketCap'),
+                'enterprise_value': info.get('enterpriseValue'),
                 'pe_ratio': info.get('trailingPE'),
                 'dividend_yield': info.get('dividendYield'),
-                'high_52week': round(high_52week, 2) if high_52week else None,
-                'low_52week': round(low_52week, 2) if low_52week else None,
+                'high_52week': round(high_52week, 2) if high_52week is not None else None,
+                'low_52week': round(low_52week, 2) if low_52week is not None else None,
                 'avg_volume': avg_volume,
                 'current_volume': current_volume,
+                'shares_outstanding': info.get('sharesOutstanding'),
                 'beta': info.get('beta'),
                 'timestamp': datetime.now().isoformat(),
             }
@@ -204,43 +244,65 @@ class MarketDataService:
             logger.error(f"Error calculating technical indicators for {ticker}: {str(e)}")
             return None
     
-    def get_historical_prices(self, ticker: str, period: str = '1mo') -> List[Dict[str, Any]]:
+    def get_historical_prices(self, ticker: str, period: str = '1m') -> Dict[str, Any]:
         """
         Get historical price data for charting
         
         Args:
             ticker: Stock ticker symbol
-            period: Time period (1mo, 3mo, 6mo, 1y, etc.)
+            period: Time period key (1d, 1w, 1m, 3m, 6m, 1y, 5y)
             
         Returns:
-            List of price data points
+            Historical prices plus interval and currency metadata
         """
         try:
             stock = yf.Ticker(ticker)
-            hist = stock.history(period=period)
+            config = self.PERIOD_CONFIG.get(period, self.PERIOD_CONFIG['1m'])
+            hist = stock.history(
+                period=config['period'],
+                interval=config['interval'],
+                auto_adjust=False
+            )
             
             if hist.empty:
-                return []
+                return {
+                    'interval': config['interval'],
+                    'currency': self.infer_currency_from_ticker(ticker),
+                    'data': [],
+                }
             
             # Calculate moving averages
             hist['SMA_20'] = hist['Close'].rolling(window=20).mean()
             hist['SMA_50'] = hist['Close'].rolling(window=50).mean()
+            info = stock.info or {}
+            currency = self.resolve_currency(ticker, info)
             
             result = []
             for index, row in hist.iterrows():
                 result.append({
                     'date': index.isoformat(),
+                    'open': round(float(row['Open']), 2),
+                    'high': round(float(row['High']), 2),
+                    'low': round(float(row['Low']), 2),
                     'close': round(float(row['Close']), 2),
                     'sma_20': round(float(row['SMA_20']), 2) if not pd.isna(row['SMA_20']) else None,
                     'sma_50': round(float(row['SMA_50']), 2) if not pd.isna(row['SMA_50']) else None,
                     'volume': int(row['Volume']),
                 })
             
-            return result
+            return {
+                'interval': config['interval'],
+                'currency': currency,
+                'data': result,
+            }
             
         except Exception as e:
             logger.error(f"Error fetching historical prices for {ticker}: {str(e)}")
-            return []
+            return {
+                'interval': self.PERIOD_CONFIG.get(period, self.PERIOD_CONFIG['1m'])['interval'],
+                'currency': self.infer_currency_from_ticker(ticker),
+                'data': [],
+            }
 
 
 # Global service instance

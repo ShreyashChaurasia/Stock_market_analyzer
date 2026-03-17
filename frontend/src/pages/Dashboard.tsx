@@ -4,7 +4,6 @@ import { Layout } from '../components/Layout';
 import { StockSearch } from '../components/StockSearch';
 import { PredictionCard } from '../components/PredictionCard';
 import { PriceChart } from '../components/PriceChart';
-import { ProbabilityChart } from '../components/ProbabilityChart';
 import { Watchlist } from '../components/Watchlist';
 import { WatchlistButton } from '../components/WatchlistButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -12,10 +11,12 @@ import { ErrorAlert } from '../components/ErrorAlert';
 import { StatsCard } from '../components/StatsCard';
 import { TechnicalIndicators } from '../components/TechnicalIndicators';
 import { MarketSummary } from '../components/MarketSummary';
+import { StockOverview } from '../components/StockOverview';
 import { stockApi } from '../services/api';
-import type { PredictionResponse } from '../types/stock';
+import type { PredictionResponse, StockInfo } from '../types/stock';
 import { useWatchlistStore } from '../store/watchlistStore';
-import { TrendingUp, DollarSign, Target, BarChart3, Brain } from 'lucide-react';
+import { TrendingUp, Landmark, Target, BarChart3, Activity, Scale } from 'lucide-react';
+import { formatCompactCurrency, formatCurrency, formatLargeNumber, inferCurrencyFromTicker } from '../utils/market';
 
 export const Dashboard: React.FC = () => {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -24,6 +25,13 @@ export const Dashboard: React.FC = () => {
   const { data, isLoading, error, refetch } = useQuery<PredictionResponse>({
     queryKey: ['prediction', selectedTicker],
     queryFn: () => stockApi.getPrediction({ ticker: selectedTicker! }),
+    enabled: !!selectedTicker,
+    retry: 1,
+  });
+
+  const { data: stockInfoData, isLoading: isStockInfoLoading } = useQuery<{ data: StockInfo }>({
+    queryKey: ['stock-info', selectedTicker],
+    queryFn: () => stockApi.getStockInfo(selectedTicker!),
     enabled: !!selectedTicker,
     retry: 1,
   });
@@ -37,9 +45,14 @@ export const Dashboard: React.FC = () => {
       updateWatchlistItem(selectedTicker, {
         latestPrice: data.latest_close,
         prediction: data.prediction,
+        currency: data.currency,
       });
     }
   }, [data, selectedTicker, updateWatchlistItem]);
+
+  const stockInfo = stockInfoData?.data;
+  const resolvedCurrency = stockInfo?.currency ?? data?.currency ?? inferCurrencyFromTicker(selectedTicker);
+  const locale = resolvedCurrency === 'INR' ? 'en-IN' : 'en-US';
 
   return (
     <Layout>
@@ -84,15 +97,17 @@ export const Dashboard: React.FC = () => {
                   ticker={data.ticker}
                   latestPrice={data.latest_close}
                   prediction={data.prediction}
+                  currency={resolvedCurrency}
                 />
               </div>
 
               {/* Statistics Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <StatsCard
                   title="Current Price"
-                  value={`$${data.latest_close.toFixed(2)}`}
-                  icon={DollarSign}
+                  value={formatCurrency(data.latest_close, resolvedCurrency)}
+                  subtitle={stockInfo?.company_name}
+                  icon={Landmark}
                   color="blue"
                 />
                 <StatsCard
@@ -109,31 +124,45 @@ export const Dashboard: React.FC = () => {
                   color="purple"
                 />
                 <StatsCard
-                  title="Model AUC"
-                  value={data.model_auc.toFixed(4)}
-                  subtitle={`${data.data_points_used} data points`}
-                  icon={Brain}
+                  title="Market Cap"
+                  value={formatCompactCurrency(stockInfo?.market_cap, resolvedCurrency)}
+                  subtitle={stockInfo?.exchange ?? 'Market value'}
+                  icon={Landmark}
+                  color="yellow"
+                />
+                <StatsCard
+                  title="Current Volume"
+                  value={formatLargeNumber(stockInfo?.current_volume, locale)}
+                  subtitle={stockInfo ? `Avg ${formatLargeNumber(stockInfo.avg_volume, locale)}` : 'Volume traded'}
+                  icon={Activity}
+                  color="blue"
+                />
+                <StatsCard
+                  title="52W Range"
+                  value={
+                    stockInfo
+                      ? `${formatCurrency(stockInfo.low_52week, resolvedCurrency)} - ${formatCurrency(stockInfo.high_52week, resolvedCurrency)}`
+                      : 'N/A'
+                  }
+                  subtitle={`${data.model_auc.toFixed(4)} model AUC`}
+                  icon={Scale}
                   color="yellow"
                 />
               </div>
 
-            {/* Main Content - Symmetric Split */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Left Column (Charts & Models) */}
-              <div className="space-y-6">
-                <PriceChart ticker={data.ticker} period="1mo" />
-                <ProbabilityChart
-                  probabilityUp={data.probability_up}
-                  probabilityDown={data.probability_down}
-                />
+            {/* Main Content */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <PriceChart ticker={data.ticker} currency={resolvedCurrency} />
               </div>
 
-              {/* Right Column (Analysis & Technicals) */}
               <div className="space-y-6">
-                <PredictionCard prediction={data} />
-                <TechnicalIndicators ticker={data.ticker} />
+                <PredictionCard prediction={data} currency={resolvedCurrency} />
+                <StockOverview info={stockInfo} isLoading={isStockInfoLoading} />
               </div>
             </div>
+
+            <TechnicalIndicators ticker={data.ticker} currency={resolvedCurrency} />
 
             {/* Bottom Section - Watchlist */}
             <div className="w-full">

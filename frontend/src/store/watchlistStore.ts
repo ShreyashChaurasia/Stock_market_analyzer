@@ -6,6 +6,7 @@ interface WatchlistItem {
   addedAt: string;
   latestPrice?: number;
   prediction?: string;
+  currency?: string;
 }
 
 interface WatchlistStore {

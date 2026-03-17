@@ -6,8 +6,11 @@ from datetime import datetime, timedelta
 from src.core.config import settings
 from src.core.logger import get_logger
 from src.core.exceptions import DataFetchError, InsufficientDataError
+from src.core.yfinance_config import configure_yfinance
 
 logger = get_logger(__name__)
+
+configure_yfinance()
 
 
 def fetch_stock_data(ticker, period="5y", interval="1d", start=None, end=None):

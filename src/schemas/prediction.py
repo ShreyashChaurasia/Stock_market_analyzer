@@ -47,6 +47,7 @@ class PredictionResponse(BaseModel):
     prediction_date: str
     latest_data_date: str
     latest_close: float
+    currency: str
     probability_up: float
     probability_down: float
     prediction: str
@@ -61,6 +62,7 @@ class PredictionResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "ticker": "AAPL",
+                "currency": "USD",
                 "prediction": "UP",
                 "probability_up": 0.65,
                 "confidence_percent": "30%"

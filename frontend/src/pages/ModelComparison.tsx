@@ -8,10 +8,28 @@ import { ModelComparisonChart } from '../components/ModelComparisonChart';
 import { stockApi } from '../services/api';
 import { BarChart3, Trophy } from 'lucide-react';
 
+interface ComparisonMetricRow {
+  model: string;
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  auc: number;
+}
+
+interface ModelComparisonResponse {
+  models_trained: number;
+  comparison: ComparisonMetricRow[];
+  best_model: {
+    model_type: string;
+    score: number;
+  } | null;
+}
+
 export const ModelComparison: React.FC = () => {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery<ModelComparisonResponse>({
     queryKey: ['compare-models', selectedTicker],
     queryFn: async () => {
       const result = await stockApi.compareModels(selectedTicker!);
@@ -127,7 +145,7 @@ export const ModelComparison: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-brand-surface divide-y divide-gray-200 dark:divide-white/5">
-                        {data.comparison.map((model: any, index: number) => (
+                        {data.comparison.map((model, index: number) => (
                           <tr key={index} className={data.best_model?.model_type === model.model ? 'bg-green-50/50 dark:bg-financial-green/5' : 'hover:bg-gray-50 dark:hover:bg-brand-surfaceHover transition-colors'}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">

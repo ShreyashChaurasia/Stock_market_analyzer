@@ -1,6 +1,8 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from typing import Optional
 from functools import lru_cache
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -37,6 +39,7 @@ class Settings(BaseSettings):
     DATA_DIR: str = "data/raw"
     OUTPUT_DIR: str = "outputs"
     LOG_DIR: str = "logs"
+    YFINANCE_CACHE_DIR: str = "data/cache/yfinance"
     
     # Stock Data Configuration
     DEFAULT_PERIOD: str = "5y"
@@ -61,6 +64,28 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+
+        if value is None:
+            return False
+
+        normalized = str(value).strip().lower()
+        if normalized in {"1", "true", "yes", "on", "debug", "development", "dev"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "release", "production", "prod"}:
+            return False
+
+        return value
+
+    @field_validator("YFINANCE_CACHE_DIR", mode="after")
+    @classmethod
+    def normalize_cache_dir(cls, value: str) -> str:
+        return str(Path(value))
     
     class Config:
         env_file = ".env"
