@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, BarChart3, Home } from 'lucide-react';
+import { TrendingUp, BarChart3, Home, Github } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
@@ -7,6 +7,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const GITHUB_REPO_URL = 'https://github.com/ShreyashChaurasia/Stock_market_analyzer';
   const [currentPage, setCurrentPage] = React.useState<string>(
     window.location.pathname
   );
@@ -30,6 +31,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </span>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-surfaceHover hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                aria-label="View project on GitHub"
+              >
+                <Github className="h-4 w-4" />
+                <span className="hidden sm:inline">GitHub</span>
+              </a>
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.href;
