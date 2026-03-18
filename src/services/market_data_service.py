@@ -44,6 +44,11 @@ class MarketDataService:
         'all': {'period': 'max', 'interval': '1wk'},
     }
 
+    STOCK_INFO_CACHE_TTL_SECONDS = 6 * 60 * 60
+
+    def __init__(self):
+        self._stock_info_cache: Dict[str, Dict[str, Any]] = {}
+
     @staticmethod
     def infer_currency_from_ticker(ticker: str) -> str:
         if ticker.endswith(('.NS', '.BO')):
@@ -188,6 +193,54 @@ class MarketDataService:
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    def _get_cached_stock_info(self, ticker: str) -> Optional[Dict[str, Any]]:
+        cache_key = ticker.upper()
+        cached_entry = self._stock_info_cache.get(cache_key)
+        if not cached_entry:
+            return None
+
+        cached_at = cached_entry.get('cached_at')
+        if not isinstance(cached_at, datetime):
+            return None
+
+        age_seconds = (datetime.utcnow() - cached_at).total_seconds()
+        if age_seconds > self.STOCK_INFO_CACHE_TTL_SECONDS:
+            self._stock_info_cache.pop(cache_key, None)
+            return None
+
+        return cached_entry.get('data')
+
+    def _update_stock_info_cache(self, ticker: str, stock_info: Dict[str, Any]) -> None:
+        cache_key = ticker.upper()
+        self._stock_info_cache[cache_key] = {
+            'cached_at': datetime.utcnow(),
+            'data': stock_info,
+        }
+
+    def _estimate_dividend_yield(self, stock: yf.Ticker, current_price: float) -> Optional[float]:
+        if current_price <= 0:
+            return None
+
+        try:
+            dividends = stock.dividends
+            if dividends is None or dividends.empty:
+                return None
+
+            if dividends.index.tz is None:
+                cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=365)
+            else:
+                cutoff = pd.Timestamp.now(tz=dividends.index.tz) - pd.Timedelta(days=365)
+
+            trailing_dividends = dividends[dividends.index >= cutoff]
+            annual_dividend = float(trailing_dividends.sum()) if not trailing_dividends.empty else float(dividends.tail(4).sum())
+            if annual_dividend <= 0:
+                return None
+
+            return annual_dividend / current_price
+        except Exception as exc:
+            logger.warning(f"Dividend yield estimate failed: {exc}")
+            return None
     
     def get_index_data(self, index_symbol: str) -> Dict[str, Any]:
         """
@@ -265,6 +318,7 @@ class MarketDataService:
         """
         try:
             stock = yf.Ticker(ticker)
+            cached_info = self._get_cached_stock_info(ticker)
             info = self._safe_info(stock, ticker)
             fast_info = self._safe_fast_info(stock, ticker)
             hist = self._fetch_history(
@@ -302,6 +356,7 @@ class MarketDataService:
                 fast_info.get('ten_day_average_volume'),
                 fast_info.get('lastVolume'),
                 fast_info.get('last_volume'),
+                cached_info.get('avg_volume') if cached_info else None,
             )
             if average_volume_raw is None:
                 volume_series = year_hist['Volume'] if not year_hist.empty else hist['Volume']
@@ -347,11 +402,13 @@ class MarketDataService:
                 info.get('sharesOutstanding'),
                 fast_info.get('shares'),
                 fast_info.get('sharesOutstanding'),
+                cached_info.get('shares_outstanding') if cached_info else None,
             )
             market_cap = self._pick_numeric(
                 info.get('marketCap'),
                 fast_info.get('marketCap'),
                 fast_info.get('market_cap'),
+                cached_info.get('market_cap') if cached_info else None,
             )
             if market_cap is None and shares_outstanding is not None:
                 market_cap = shares_outstanding * current_price
@@ -359,40 +416,58 @@ class MarketDataService:
             enterprise_value = self._pick_numeric(
                 info.get('enterpriseValue'),
                 info.get('enterprise_value'),
+                cached_info.get('enterprise_value') if cached_info else None,
             )
             pe_ratio = self._pick_numeric(
                 info.get('trailingPE'),
                 info.get('forwardPE'),
                 fast_info.get('trailingPE'),
                 fast_info.get('trailing_pe'),
+                fast_info.get('peRatio'),
+                fast_info.get('pe_ratio'),
+                cached_info.get('pe_ratio') if cached_info else None,
             )
             dividend_yield = self._pick_numeric(
                 info.get('dividendYield'),
                 info.get('fiveYearAvgDividendYield'),
                 fast_info.get('dividendYield'),
                 fast_info.get('dividend_yield'),
+                cached_info.get('dividend_yield') if cached_info else None,
             )
+            if dividend_yield is None:
+                dividend_yield = self._estimate_dividend_yield(stock, current_price)
             beta = self._pick_numeric(
                 info.get('beta'),
                 fast_info.get('beta'),
+                cached_info.get('beta') if cached_info else None,
             )
             exchange = self._pick_value(
                 info.get('fullExchangeName'),
                 info.get('exchange'),
                 fast_info.get('exchange'),
+                cached_info.get('exchange') if cached_info else None,
             )
             
-            return {
+            stock_info_payload = {
                 'ticker': ticker,
                 'company_name': self._pick_value(
                     info.get('longName'),
                     info.get('shortName'),
                     fast_info.get('longName'),
                     fast_info.get('shortName'),
+                    cached_info.get('company_name') if cached_info else None,
                     ticker,
                 ),
-                'sector': self._pick_value(info.get('sector'), 'N/A'),
-                'industry': self._pick_value(info.get('industry'), 'N/A'),
+                'sector': self._pick_value(
+                    info.get('sector'),
+                    cached_info.get('sector') if cached_info else None,
+                    'N/A',
+                ),
+                'industry': self._pick_value(
+                    info.get('industry'),
+                    cached_info.get('industry') if cached_info else None,
+                    'N/A',
+                ),
                 'current_price': round(current_price, 2),
                 'currency': currency,
                 'exchange': exchange,
@@ -412,6 +487,9 @@ class MarketDataService:
                 'beta': round(beta, 4) if beta is not None else None,
                 'timestamp': datetime.now().isoformat(),
             }
+
+            self._update_stock_info_cache(ticker, stock_info_payload)
+            return stock_info_payload
             
         except Exception as e:
             logger.error(f"Error fetching stock info for {ticker}: {str(e)}")

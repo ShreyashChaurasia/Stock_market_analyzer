@@ -21,7 +21,7 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
         <div className="animate-pulse space-y-4">
           <div className="h-7 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
           <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 8 }).map((_, index) => (
+            {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="h-20 rounded-xl bg-gray-200 dark:bg-gray-700" />
             ))}
           </div>
@@ -68,18 +68,13 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
       icon: Scale,
     },
     {
-      label: 'Shares Out',
-      value: formatLargeNumber(info.shares_outstanding, locale),
-      icon: Building2,
-    },
-    {
       label: 'Dividend Yield',
       value: info.dividend_yield !== null && info.dividend_yield !== undefined
         ? formatPercent(info.dividend_yield * 100)
-        : 'N/A',
+        : null,
       icon: Landmark,
     },
-  ];
+  ].filter((item) => item.value !== null);
 
   return (
     <div className="glass-panel p-6">
@@ -113,18 +108,14 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
               {formatCurrency(info.open_price, info.currency)}
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200/70 bg-white/70 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover">
-            <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">P/E Ratio</p>
-            <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {info.pe_ratio !== null && info.pe_ratio !== undefined ? info.pe_ratio.toFixed(2) : 'N/A'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-gray-200/70 bg-white/70 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover">
-            <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Beta</p>
-            <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {info.beta !== null && info.beta !== undefined ? info.beta.toFixed(2) : 'N/A'}
-            </p>
-          </div>
+          {info.pe_ratio !== null && info.pe_ratio !== undefined && (
+            <div className="rounded-xl border border-gray-200/70 bg-white/70 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover">
+              <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">P/E Ratio</p>
+              <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                {info.pe_ratio.toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
