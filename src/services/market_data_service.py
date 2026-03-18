@@ -1,6 +1,6 @@
 import pandas as pd
 import yfinance as yf
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 from src.core.logger import get_logger
@@ -52,6 +52,93 @@ class MarketDataService:
 
     def resolve_currency(self, ticker: str, info: Dict[str, Any]) -> str:
         return info.get('currency') or self.infer_currency_from_ticker(ticker)
+
+    @staticmethod
+    def _normalize_history_frame(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
+
+        for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+            if col in df.columns and hasattr(df[col], 'squeeze'):
+                df[col] = df[col].squeeze()
+
+        return df
+
+    def _fetch_history(
+        self,
+        stock: yf.Ticker,
+        symbol: str,
+        *,
+        period: Optional[str] = None,
+        interval: str = '1d',
+        start: Optional[str] = None,
+        end: Optional[str] = None,
+        auto_adjust: bool = False,
+        actions: bool = False,
+    ) -> pd.DataFrame:
+        history_kwargs: Dict[str, Any] = {
+            'interval': interval,
+            'auto_adjust': auto_adjust,
+            'actions': actions,
+        }
+        if start:
+            history_kwargs['start'] = start
+            if end:
+                history_kwargs['end'] = end
+        elif period:
+            history_kwargs['period'] = period
+
+        try:
+            hist = stock.history(**history_kwargs)
+            hist = self._normalize_history_frame(hist)
+            if not hist.empty:
+                return hist
+            logger.warning(f"Ticker.history returned empty data for {symbol}: {history_kwargs}")
+        except Exception as exc:
+            logger.warning(
+                f"Ticker.history failed for {symbol}. kwargs={history_kwargs}, error={exc}"
+            )
+
+        download_kwargs: Dict[str, Any] = {
+            'tickers': symbol,
+            'interval': interval,
+            'auto_adjust': auto_adjust,
+            'actions': actions,
+            'progress': False,
+            'threads': False,
+        }
+        if start:
+            download_kwargs['start'] = start
+            if end:
+                download_kwargs['end'] = end
+        elif period:
+            download_kwargs['period'] = period
+
+        try:
+            hist = yf.download(**download_kwargs)
+            hist = self._normalize_history_frame(hist)
+            if not hist.empty:
+                logger.info(f"Fetched history for {symbol} using yf.download fallback")
+                return hist
+            logger.warning(f"yf.download returned empty data for {symbol}: {download_kwargs}")
+        except Exception as exc:
+            logger.error(
+                f"yf.download failed for {symbol}. kwargs={download_kwargs}, error={exc}",
+                exc_info=True,
+            )
+
+        return pd.DataFrame()
+
+    @staticmethod
+    def _safe_info(stock: yf.Ticker, symbol: str) -> Dict[str, Any]:
+        try:
+            return stock.info or {}
+        except Exception as exc:
+            logger.warning(f"Ticker.info failed for {symbol}: {exc}")
+            return {}
     
     def get_index_data(self, index_symbol: str) -> Dict[str, Any]:
         """
@@ -65,7 +152,17 @@ class MarketDataService:
         """
         try:
             ticker = yf.Ticker(index_symbol)
-            hist = ticker.history(period='2d')
+            hist = pd.DataFrame()
+            for history_period in ('2d', '5d'):
+                hist = self._fetch_history(
+                    ticker,
+                    index_symbol,
+                    period=history_period,
+                    interval='1d',
+                    auto_adjust=False,
+                )
+                if not hist.empty and len(hist) >= 2:
+                    break
             
             if hist.empty or len(hist) < 2:
                 logger.warning(f"Insufficient data for {index_symbol}")
@@ -119,16 +216,29 @@ class MarketDataService:
         """
         try:
             stock = yf.Ticker(ticker)
-            info = stock.info
-            hist = stock.history(period='5d')
+            info = self._safe_info(stock, ticker)
+            hist = self._fetch_history(
+                stock,
+                ticker,
+                period='5d',
+                interval='1d',
+                auto_adjust=False,
+            )
             
             if hist.empty:
+                logger.warning(f"No historical data available for {ticker} in get_stock_info")
                 return None
             
             current_price = float(hist['Close'].iloc[-1])
             
             # Calculate 52-week high/low
-            year_hist = stock.history(period='1y')
+            year_hist = self._fetch_history(
+                stock,
+                ticker,
+                period='1y',
+                interval='1d',
+                auto_adjust=False,
+            )
             high_52week = float(year_hist['High'].max()) if not year_hist.empty else None
             low_52week = float(year_hist['Low'].min()) if not year_hist.empty else None
             
@@ -148,7 +258,7 @@ class MarketDataService:
             
             return {
                 'ticker': ticker,
-                'company_name': info.get('longName', ticker),
+                'company_name': info.get('longName') or info.get('shortName') or ticker,
                 'sector': info.get('sector', 'N/A'),
                 'industry': info.get('industry', 'N/A'),
                 'current_price': round(current_price, 2),
@@ -265,10 +375,12 @@ class MarketDataService:
         try:
             stock = yf.Ticker(ticker)
             config = self.PERIOD_CONFIG.get(period, self.PERIOD_CONFIG['1m'])
-            hist = stock.history(
+            hist = self._fetch_history(
+                stock,
+                ticker,
                 period=config['period'],
                 interval=config['interval'],
-                auto_adjust=False
+                auto_adjust=False,
             )
             
             if hist.empty:
@@ -281,11 +393,12 @@ class MarketDataService:
             # Calculate moving averages
             hist['SMA_20'] = hist['Close'].rolling(window=20).mean()
             hist['SMA_50'] = hist['Close'].rolling(window=50).mean()
-            info = stock.info or {}
+            info = self._safe_info(stock, ticker)
             currency = self.resolve_currency(ticker, info)
             
             result = []
             for index, row in hist.iterrows():
+                volume_value = int(row['Volume']) if pd.notna(row.get('Volume')) else 0
                 result.append({
                     'date': index.isoformat(),
                     'open': round(float(row['Open']), 2),
@@ -294,7 +407,7 @@ class MarketDataService:
                     'close': round(float(row['Close']), 2),
                     'sma_20': round(float(row['SMA_20']), 2) if not pd.isna(row['SMA_20']) else None,
                     'sma_50': round(float(row['SMA_50']), 2) if not pd.isna(row['SMA_50']) else None,
-                    'volume': int(row['Volume']),
+                    'volume': volume_value,
                 })
             
             return {
