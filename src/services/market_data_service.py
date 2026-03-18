@@ -135,10 +135,59 @@ class MarketDataService:
     @staticmethod
     def _safe_info(stock: yf.Ticker, symbol: str) -> Dict[str, Any]:
         try:
-            return stock.info or {}
+            info = stock.info or {}
+            if info:
+                return info
         except Exception as exc:
             logger.warning(f"Ticker.info failed for {symbol}: {exc}")
+        try:
+            return stock.get_info() or {}
+        except Exception as exc:
+            logger.warning(f"Ticker.get_info failed for {symbol}: {exc}")
             return {}
+
+    @staticmethod
+    def _safe_fast_info(stock: yf.Ticker, symbol: str) -> Dict[str, Any]:
+        try:
+            raw_fast_info = stock.fast_info
+            if not raw_fast_info:
+                return {}
+            if isinstance(raw_fast_info, dict):
+                return raw_fast_info
+            if hasattr(raw_fast_info, 'keys'):
+                return {key: raw_fast_info[key] for key in raw_fast_info.keys()}
+            return {}
+        except Exception as exc:
+            logger.warning(f"Ticker.fast_info failed for {symbol}: {exc}")
+            return {}
+
+    @staticmethod
+    def _is_missing(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, float) and pd.isna(value):
+            return True
+        if isinstance(value, str) and value.strip().upper() in {'', 'N/A', 'NA', 'NONE', 'NULL'}:
+            return True
+        return False
+
+    @classmethod
+    def _pick_value(cls, *values: Any) -> Any:
+        for value in values:
+            if cls._is_missing(value):
+                continue
+            return value
+        return None
+
+    @classmethod
+    def _pick_numeric(cls, *values: Any) -> Optional[float]:
+        value = cls._pick_value(*values)
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
     
     def get_index_data(self, index_symbol: str) -> Dict[str, Any]:
         """
@@ -217,6 +266,7 @@ class MarketDataService:
         try:
             stock = yf.Ticker(ticker)
             info = self._safe_info(stock, ticker)
+            fast_info = self._safe_fast_info(stock, ticker)
             hist = self._fetch_history(
                 stock,
                 ticker,
@@ -243,41 +293,123 @@ class MarketDataService:
             low_52week = float(year_hist['Low'].min()) if not year_hist.empty else None
             
             # Get volume
-            average_volume_raw = info.get('averageVolume')
+            average_volume_raw = self._pick_value(
+                info.get('averageVolume'),
+                info.get('averageDailyVolume3Month'),
+                fast_info.get('threeMonthAverageVolume'),
+                fast_info.get('three_month_average_volume'),
+                fast_info.get('tenDayAverageVolume'),
+                fast_info.get('ten_day_average_volume'),
+                fast_info.get('lastVolume'),
+                fast_info.get('last_volume'),
+            )
             if average_volume_raw is None:
                 volume_series = year_hist['Volume'] if not year_hist.empty else hist['Volume']
                 average_volume_raw = volume_series.mean()
 
             avg_volume = int(average_volume_raw) if pd.notna(average_volume_raw) else 0
-            current_volume = int(hist['Volume'].iloc[-1])
-            current_open = float(hist['Open'].iloc[-1]) if 'Open' in hist else None
-            day_high = float(hist['High'].iloc[-1]) if 'High' in hist else None
-            day_low = float(hist['Low'].iloc[-1]) if 'Low' in hist else None
-            previous_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else info.get('previousClose')
+            current_volume = int(hist['Volume'].iloc[-1]) if 'Volume' in hist else int(
+                self._pick_numeric(fast_info.get('lastVolume'), fast_info.get('last_volume')) or 0
+            )
+            current_open = self._pick_numeric(
+                float(hist['Open'].iloc[-1]) if 'Open' in hist else None,
+                info.get('open'),
+                info.get('regularMarketOpen'),
+                fast_info.get('open'),
+                fast_info.get('regularMarketOpen'),
+                fast_info.get('last_open'),
+            )
+            day_high = self._pick_numeric(
+                float(hist['High'].iloc[-1]) if 'High' in hist else None,
+                info.get('dayHigh'),
+                info.get('regularMarketDayHigh'),
+                fast_info.get('dayHigh'),
+                fast_info.get('day_high'),
+            )
+            day_low = self._pick_numeric(
+                float(hist['Low'].iloc[-1]) if 'Low' in hist else None,
+                info.get('dayLow'),
+                info.get('regularMarketDayLow'),
+                fast_info.get('dayLow'),
+                fast_info.get('day_low'),
+            )
+            previous_close = self._pick_numeric(
+                float(hist['Close'].iloc[-2]) if len(hist) > 1 else None,
+                info.get('previousClose'),
+                info.get('regularMarketPreviousClose'),
+                fast_info.get('previousClose'),
+                fast_info.get('previous_close'),
+                fast_info.get('regularMarketPreviousClose'),
+            )
             currency = self.resolve_currency(ticker, info)
+
+            shares_outstanding = self._pick_numeric(
+                info.get('sharesOutstanding'),
+                fast_info.get('shares'),
+                fast_info.get('sharesOutstanding'),
+            )
+            market_cap = self._pick_numeric(
+                info.get('marketCap'),
+                fast_info.get('marketCap'),
+                fast_info.get('market_cap'),
+            )
+            if market_cap is None and shares_outstanding is not None:
+                market_cap = shares_outstanding * current_price
+
+            enterprise_value = self._pick_numeric(
+                info.get('enterpriseValue'),
+                info.get('enterprise_value'),
+            )
+            pe_ratio = self._pick_numeric(
+                info.get('trailingPE'),
+                info.get('forwardPE'),
+                fast_info.get('trailingPE'),
+                fast_info.get('trailing_pe'),
+            )
+            dividend_yield = self._pick_numeric(
+                info.get('dividendYield'),
+                info.get('fiveYearAvgDividendYield'),
+                fast_info.get('dividendYield'),
+                fast_info.get('dividend_yield'),
+            )
+            beta = self._pick_numeric(
+                info.get('beta'),
+                fast_info.get('beta'),
+            )
+            exchange = self._pick_value(
+                info.get('fullExchangeName'),
+                info.get('exchange'),
+                fast_info.get('exchange'),
+            )
             
             return {
                 'ticker': ticker,
-                'company_name': info.get('longName') or info.get('shortName') or ticker,
-                'sector': info.get('sector', 'N/A'),
-                'industry': info.get('industry', 'N/A'),
+                'company_name': self._pick_value(
+                    info.get('longName'),
+                    info.get('shortName'),
+                    fast_info.get('longName'),
+                    fast_info.get('shortName'),
+                    ticker,
+                ),
+                'sector': self._pick_value(info.get('sector'), 'N/A'),
+                'industry': self._pick_value(info.get('industry'), 'N/A'),
                 'current_price': round(current_price, 2),
                 'currency': currency,
-                'exchange': info.get('fullExchangeName') or info.get('exchange'),
+                'exchange': exchange,
                 'previous_close': round(previous_close, 2) if previous_close is not None else None,
                 'open_price': round(current_open, 2) if current_open is not None else None,
                 'day_high': round(day_high, 2) if day_high is not None else None,
                 'day_low': round(day_low, 2) if day_low is not None else None,
-                'market_cap': info.get('marketCap'),
-                'enterprise_value': info.get('enterpriseValue'),
-                'pe_ratio': info.get('trailingPE'),
-                'dividend_yield': info.get('dividendYield'),
+                'market_cap': int(market_cap) if market_cap is not None else None,
+                'enterprise_value': int(enterprise_value) if enterprise_value is not None else None,
+                'pe_ratio': round(pe_ratio, 2) if pe_ratio is not None else None,
+                'dividend_yield': round(dividend_yield, 4) if dividend_yield is not None else None,
                 'high_52week': round(high_52week, 2) if high_52week is not None else None,
                 'low_52week': round(low_52week, 2) if low_52week is not None else None,
                 'avg_volume': avg_volume,
                 'current_volume': current_volume,
-                'shares_outstanding': info.get('sharesOutstanding'),
-                'beta': info.get('beta'),
+                'shares_outstanding': int(shares_outstanding) if shares_outstanding is not None else None,
+                'beta': round(beta, 4) if beta is not None else None,
                 'timestamp': datetime.now().isoformat(),
             }
             
