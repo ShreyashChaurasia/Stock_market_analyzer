@@ -157,3 +157,5 @@ AlphaVanatge_API.txt
 # Additional Model Data
 # ============================================================================
 model_artifacts/
+
+data/cache/

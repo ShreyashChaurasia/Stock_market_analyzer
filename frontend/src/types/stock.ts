@@ -70,6 +70,9 @@ export interface StockInfo {
   industry: string;
   currency: string;
   exchange: string | null;
+  website?: string | null;
+  company_logo?: string | null;
+  company_logo_candidates?: string[];
   current_price: number;
   previous_close: number | null;
   open_price: number | null;
@@ -86,6 +89,13 @@ export interface StockInfo {
   shares_outstanding: number | null;
   beta: number;
   timestamp: string;
+}
+
+export interface StockSuggestion {
+  symbol: string;
+  name: string;
+  exchange?: string | null;
+  quote_type?: string | null;
 }
 
 export interface TechnicalIndicator {

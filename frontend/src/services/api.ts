@@ -7,6 +7,7 @@ import type {
   HealthResponse,
   MarketIndices,
   StockInfo,
+  StockSuggestion,
   TechnicalIndicators,
   HistoricalPricesResponse,
   IndexHistoricalResponse,
@@ -64,6 +65,15 @@ export const stockApi = {
 
   getStockInfo: async (ticker: string): Promise<{ data: StockInfo }> => {
     const response = await api.get(API_ENDPOINTS.stockInfo(ticker));
+    return response.data;
+  },
+
+  searchSymbols: async (
+    query: string,
+    market: 'US' | 'INDIA' | 'ALL' = 'ALL',
+    limit: number = 8
+  ): Promise<{ results: StockSuggestion[] }> => {
+    const response = await api.get(API_ENDPOINTS.searchSymbols(query, market, limit));
     return response.data;
   },
 

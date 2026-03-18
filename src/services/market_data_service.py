@@ -2,6 +2,7 @@ import pandas as pd
 import yfinance as yf
 from typing import Dict, Any, Optional
 from datetime import datetime
+from urllib.parse import urlparse
 
 from src.core.logger import get_logger
 from src.core.yfinance_config import configure_yfinance
@@ -241,6 +242,133 @@ class MarketDataService:
         except Exception as exc:
             logger.warning(f"Dividend yield estimate failed: {exc}")
             return None
+
+    @staticmethod
+    def _normalize_website(website: Optional[str]) -> Optional[str]:
+        if not website or not isinstance(website, str):
+            return None
+
+        cleaned = website.strip()
+        if not cleaned:
+            return None
+
+        if not cleaned.startswith(('http://', 'https://')):
+            cleaned = f'https://{cleaned}'
+
+        return cleaned
+
+    @staticmethod
+    def _extract_domain(website: Optional[str]) -> Optional[str]:
+        normalized_website = MarketDataService._normalize_website(website)
+        if not normalized_website:
+            return None
+
+        parsed = urlparse(normalized_website)
+        domain = (parsed.netloc or '').lower().strip()
+        if domain.startswith('www.'):
+            domain = domain[4:]
+
+        return domain or None
+
+    def _resolve_company_logo(
+        self,
+        info: Dict[str, Any],
+        cached_info: Optional[Dict[str, Any]],
+    ) -> tuple[Optional[str], Optional[str], list[str]]:
+        website = self._pick_value(
+            info.get('website'),
+            cached_info.get('website') if cached_info else None,
+        )
+        normalized_website = self._normalize_website(website)
+
+        logo_candidates: list[str] = []
+
+        def add_candidate(candidate: Optional[str]) -> None:
+            if not candidate or not isinstance(candidate, str):
+                return
+            cleaned = candidate.strip()
+            if (
+                not cleaned
+                or 'google.com/s2/favicons' in cleaned
+                or cleaned in logo_candidates
+            ):
+                return
+            logo_candidates.append(cleaned)
+
+        add_candidate(info.get('logo_url'))
+        add_candidate(info.get('logoUrl'))
+        add_candidate(cached_info.get('company_logo') if cached_info else None)
+
+        domain = self._extract_domain(normalized_website)
+        if domain:
+            # Better brand logo candidates than generic globe favicon fallbacks.
+            add_candidate(f'https://logo.clearbit.com/{domain}')
+            add_candidate(f'https://icons.duckduckgo.com/ip3/{domain}.ico')
+
+        primary_logo = logo_candidates[0] if logo_candidates else None
+        return normalized_website, primary_logo, logo_candidates
+
+    def search_symbols(self, query: str, market: str = 'ALL', limit: int = 8) -> list[Dict[str, Any]]:
+        normalized_query = (query or '').strip()
+        if not normalized_query:
+            return []
+
+        normalized_market = (market or 'ALL').upper()
+        bounded_limit = max(1, min(limit, 20))
+
+        try:
+            search = yf.Search(normalized_query, max_results=max(10, bounded_limit * 3))
+            quotes = getattr(search, 'quotes', []) or []
+        except Exception as exc:
+            logger.warning(f"Ticker search failed for query '{normalized_query}': {exc}")
+            return []
+
+        results: list[Dict[str, Any]] = []
+        seen_symbols: set[str] = set()
+
+        for quote in quotes:
+            symbol = str(quote.get('symbol') or '').upper().strip()
+            if not symbol or symbol in seen_symbols:
+                continue
+
+            exchange = str(
+                quote.get('exchDisp')
+                or quote.get('exchange')
+                or quote.get('exch')
+                or ''
+            ).strip()
+            quote_type = str(quote.get('quoteType') or '').strip()
+            is_indian = (
+                symbol.endswith('.NS')
+                or symbol.endswith('.BO')
+                or 'NSE' in exchange.upper()
+                or 'BSE' in exchange.upper()
+            )
+
+            if normalized_market == 'INDIA' and not is_indian:
+                continue
+            if normalized_market == 'US' and is_indian:
+                continue
+
+            seen_symbols.add(symbol)
+            results.append(
+                {
+                    'symbol': symbol,
+                    'name': (
+                        quote.get('shortname')
+                        or quote.get('longname')
+                        or quote.get('name')
+                        or symbol
+                    ),
+                    'exchange': exchange or None,
+                    'quote_type': quote_type or None,
+                }
+            )
+
+            if len(results) >= bounded_limit:
+                break
+
+        return results
     
     def get_index_data(self, index_symbol: str) -> Dict[str, Any]:
         """
@@ -447,6 +575,7 @@ class MarketDataService:
                 fast_info.get('exchange'),
                 cached_info.get('exchange') if cached_info else None,
             )
+            website, company_logo, company_logo_candidates = self._resolve_company_logo(info, cached_info)
             
             stock_info_payload = {
                 'ticker': ticker,
@@ -471,6 +600,9 @@ class MarketDataService:
                 'current_price': round(current_price, 2),
                 'currency': currency,
                 'exchange': exchange,
+                'website': website,
+                'company_logo': company_logo,
+                'company_logo_candidates': company_logo_candidates,
                 'previous_close': round(previous_close, 2) if previous_close is not None else None,
                 'open_price': round(current_open, 2) if current_open is not None else None,
                 'day_high': round(day_high, 2) if day_high is not None else None,

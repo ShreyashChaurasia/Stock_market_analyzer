@@ -465,6 +465,49 @@ async def get_index_historical_prices(
             detail=f"Failed to fetch index historical prices: {str(e)}"
         )
 
+
+@app.get("/api/market/search", tags=["Market Data"])
+async def search_market_symbols(
+    q: str,
+    market: str = "ALL",
+    limit: int = 8,
+):
+    """
+    Search stocks by symbol or company name.
+
+    Args:
+        q: Query text (ticker or company name)
+        market: ALL, US, or INDIA
+        limit: Maximum results (1-20)
+    """
+    normalized_query = (q or "").strip()
+    if not normalized_query:
+        return {"success": True, "query": q, "results": []}
+
+    bounded_limit = max(1, min(limit, 20))
+    normalized_market = (market or "ALL").upper()
+    if normalized_market not in {"ALL", "US", "INDIA"}:
+        raise HTTPException(status_code=400, detail="market must be one of: ALL, US, INDIA")
+
+    try:
+        results = market_service.search_symbols(
+            query=normalized_query,
+            market=normalized_market,
+            limit=bounded_limit,
+        )
+        return {
+            "success": True,
+            "query": normalized_query,
+            "market": normalized_market,
+            "results": results,
+        }
+    except Exception as e:
+        logger.error(f"Error searching symbols for '{normalized_query}': {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search symbols: {str(e)}"
+        )
+
 # Entry Point
 if __name__ == "__main__":
     import uvicorn

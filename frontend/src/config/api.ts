@@ -11,6 +11,8 @@ export const API_ENDPOINTS = {
   marketIndices: '/api/market/indices',
   indexHistorical: (market: string, period: string) => `/api/market/index-historical/${market}?period=${period}`,
   stockInfo: (ticker: string) => `/api/market/stock-info/${ticker}`,
+  searchSymbols: (query: string, market: string, limit: number = 8) =>
+    `/api/market/search?q=${encodeURIComponent(query)}&market=${encodeURIComponent(market)}&limit=${limit}`,
   technicalIndicators: (ticker: string) => `/api/market/technical-indicators/${ticker}`,
   historicalPrices: (ticker: string, period: string) => `/api/market/historical-prices/${ticker}?period=${period}`,
 };
