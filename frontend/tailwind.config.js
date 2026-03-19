@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         primary: {
@@ -19,15 +19,15 @@ export default {
           700: '#0369a1',
         },
         brand: {
-          dark: '#000000',      // Pure black for deep contrast
-          surface: '#121212',   // Clean dark gray card background (Groww/Apple Stocks style)
-          surfaceHover: '#1E1E1E', // Slightly lighter for hovers
-          accent: '#3B82F6',    // Striking Modern Blue (replaces mint green)
+          dark: '#0B1220',
+          surface: '#111827',
+          surfaceHover: '#1F2937',
+          accent: '#2563EB',
         },
         financial: {
-          green: '#00D09C',     // Bright mint for Up/Success 
-          red: '#EF4444',       // Sharp red for Down/Danger
-          yellow: '#F59E0B',    // Warning
+          green: '#16A34A',
+          red: '#DC2626',
+          yellow: '#D97706',
         }
       },
       backgroundImage: {

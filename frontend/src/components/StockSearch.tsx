@@ -89,34 +89,34 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onSearch, loading }) =
 
   return (
     <div className="w-full">
-      <div className="flex justify-center gap-3 mb-6">
+      <div className="mb-4 flex justify-center gap-2.5">
         <button
           onClick={() => setMarket('US')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 ${
+          className={`flex items-center space-x-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
             market === 'US'
-              ? 'bg-brand-accent text-brand-dark shadow-sm'
-              : 'bg-white dark:bg-brand-surface text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+              ? 'bg-brand-accent text-white shadow-sm'
+              : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-brand-surface dark:text-gray-400 dark:hover:border-gray-600'
           }`}
         >
-          <Globe className="h-4 w-4" />
-          <span className="tracking-wide">US Market</span>
+          <Globe className="h-3.5 w-3.5" />
+          <span>US Market</span>
         </button>
         <button
           onClick={() => setMarket('INDIA')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 ${
+          className={`flex items-center space-x-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
             market === 'INDIA'
-              ? 'bg-brand-accent text-brand-dark shadow-sm'
-              : 'bg-white dark:bg-brand-surface text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+              ? 'bg-brand-accent text-white shadow-sm'
+              : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-brand-surface dark:text-gray-400 dark:hover:border-gray-600'
           }`}
         >
-          <Globe className="h-4 w-4" />
-          <span className="tracking-wide">Indian Market (NSE)</span>
+          <Globe className="h-3.5 w-3.5" />
+          <span>Indian Market (NSE)</span>
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5 sm:flex-row">
         <div className="flex-1 relative group">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-brand-accent transition-colors h-5 w-5" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400 transition-colors group-focus-within:text-brand-accent" />
           <input
             type="text"
             value={ticker}
@@ -124,22 +124,22 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onSearch, loading }) =
             onFocus={() => setIsDropdownOpen(suggestions.length > 0)}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 120)}
             placeholder={market === 'US' ? 'Search US stock (e.g., Apple or AAPL)' : 'Search Indian stock (e.g., Reliance or RELIANCE)'}
-            className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-white/5 bg-white dark:bg-brand-surface dark:text-white rounded-xl focus:ring-1 focus:ring-brand-accent focus:border-brand-accent font-mono text-lg transition-all dark:placeholder:text-gray-500 placeholder:font-sans placeholder:text-base"
+            className="w-full rounded-md border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm font-medium text-gray-900 transition-colors placeholder:font-sans placeholder:text-sm placeholder:text-gray-500 focus:border-brand-accent focus:ring-1 focus:ring-brand-accent dark:border-gray-700 dark:bg-brand-surface dark:text-white dark:placeholder:text-gray-500"
             disabled={loading}
           />
           {isDropdownOpen && (
-            <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-brand-surface shadow-xl">
+            <div className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-brand-surface">
               {suggestions.map((item) => (
                 <button
                   type="button"
                   key={`${item.symbol}-${item.exchange ?? ''}`}
                   onMouseDown={() => handleSuggestionSelect(item)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-brand-surfaceHover transition-colors border-b border-gray-100 dark:border-white/5 last:border-b-0"
+                  className="w-full border-b border-gray-100 px-3.5 py-2.5 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-brand-surfaceHover"
                 >
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
                     {item.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">
+                  <p className="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">
                     {item.symbol}{item.exchange ? ` • ${item.exchange}` : ''}
                   </p>
                 </button>
@@ -150,26 +150,26 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onSearch, loading }) =
         <button
           type="submit"
           disabled={loading || !ticker.trim()}
-          className="px-8 py-4 bg-brand-accent text-brand-dark rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-bold tracking-wide transition-all shadow-sm"
+          className="rounded-md bg-brand-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Analyzing...' : 'Execute'}
         </button>
       </form>
-      <p className="mt-3 text-xs text-center text-gray-500 dark:text-gray-400">
+      <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
         {isSearching ? 'Searching symbols...' : 'Tip: search by company name or ticker'}
       </p>
 
-      <div className="mt-8">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider text-center">
+      <div className="mt-5">
+        <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
           Popular {market === 'US' ? 'US' : 'Indian'} Equities
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-1.5">
           {currentStocks.map((stock) => (
             <button
               key={stock}
               onClick={() => handleQuickSearch(stock)}
               disabled={loading}
-              className="px-4 py-1.5 bg-white dark:bg-brand-surface border border-gray-200 dark:border-white/5 text-gray-700 dark:text-gray-400 rounded-lg hover:border-brand-accent hover:text-brand-accent dark:hover:text-brand-accent transition-all text-sm font-mono font-medium disabled:opacity-50"
+              className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-brand-accent hover:text-brand-accent disabled:opacity-50 dark:border-gray-700 dark:bg-brand-surface dark:text-gray-400 dark:hover:text-brand-accent"
             >
               {stock}
             </button>

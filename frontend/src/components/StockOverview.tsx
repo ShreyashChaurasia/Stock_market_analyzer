@@ -25,27 +25,44 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
   const [logoCandidateIndex, setLogoCandidateIndex] = React.useState(0);
   const logoCandidates = React.useMemo(() => {
     if (!info) return [];
+
+    const optimizeCandidate = (candidate: string) => {
+      let normalized = candidate.trim();
+      if (normalized.includes('logo.clearbit.com') && !normalized.includes('size=')) {
+        normalized = `${normalized}${normalized.includes('?') ? '&' : '?'}size=256`;
+      }
+      return normalized;
+    };
+
     const merged = [info.company_logo, ...(info.company_logo_candidates || [])]
       .filter((candidate): candidate is string => Boolean(candidate))
-      .map((candidate) => candidate.trim())
+      .map((candidate) => optimizeCandidate(candidate))
       .filter((candidate) => candidate.length > 0 && !candidate.includes('google.com/s2/favicons'));
-    return [...new Set(merged)];
+
+    const uniqueCandidates = [...new Set(merged)];
+
+    // Prefer higher-quality brand logo sources over favicon-sized ICO files.
+    return uniqueCandidates.sort((a, b) => Number(a.includes('.ico')) - Number(b.includes('.ico')));
   }, [info]);
   const activeLogo = logoCandidates[logoCandidateIndex];
+  const logoCandidatesKey = React.useMemo(
+    () => info?.company_logo_candidates?.join('|') ?? '',
+    [info?.company_logo_candidates]
+  );
 
   React.useEffect(() => {
     setIsLogoBroken(false);
     setLogoCandidateIndex(0);
-  }, [info?.ticker, info?.company_logo, info?.company_logo_candidates?.join('|')]);
+  }, [info?.ticker, info?.company_logo, logoCandidatesKey]);
 
   if (isLoading) {
     return (
-      <div className="glass-panel p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-7 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
-          <div className="grid grid-cols-2 gap-3">
+      <div className="glass-panel p-4">
+        <div className="animate-pulse space-y-3">
+          <div className="h-6 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="grid grid-cols-2 gap-2.5">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-20 rounded-xl bg-gray-200 dark:bg-gray-700" />
+              <div key={index} className="h-16 rounded-md bg-gray-200 dark:bg-gray-700" />
             ))}
           </div>
         </div>
@@ -146,16 +163,23 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
   ].filter((item): item is MetricCardItem => Boolean(item));
 
   return (
-    <div className="glass-panel p-6">
-      <div className="mb-5">
-        <div className="flex items-start gap-4 mb-2">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-gray-200/70 bg-white/70 dark:border-gray-800 dark:bg-brand-surfaceHover">
+    <div className="glass-panel p-4">
+      <div className="mb-4">
+        <div className="mb-2 flex items-start gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-gray-200/70 bg-white dark:border-gray-800 dark:bg-brand-surfaceHover">
             {activeLogo && !isLogoBroken ? (
               <img
                 src={activeLogo}
                 alt={`${info.company_name} logo`}
-                className="h-full w-full object-cover"
+                className="h-full w-full bg-white object-contain p-1"
                 loading="lazy"
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  const minDimension = Math.min(image.naturalWidth, image.naturalHeight);
+                  if (minDimension < 48 && logoCandidateIndex < logoCandidates.length - 1) {
+                    setLogoCandidateIndex((prev) => prev + 1);
+                  }
+                }}
                 onError={() => {
                   if (logoCandidateIndex < logoCandidates.length - 1) {
                     setLogoCandidateIndex((prev) => prev + 1);
@@ -165,27 +189,27 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
                 }}
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-base font-bold text-brand-accent">
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-brand-accent">
                 {companyInitials || info.ticker.slice(0, 2)}
               </div>
             )}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">
                 {info.company_name}
               </h3>
               {exchangeLabel && (
-                <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                <span className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
                   {exchangeLabel}
                 </span>
               )}
-              <span className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-accent">
+              <span className="rounded-full bg-brand-accent/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-accent">
                 {info.currency}
               </span>
             </div>
             {profileSummary && (
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                 {profileSummary}
               </p>
             )}
@@ -193,16 +217,16 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
         </div>
 
         {topMetrics.length > 0 && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
             {topMetrics.map((metric, index) => (
               <div
                 key={metric.label}
-                className={`rounded-xl border border-gray-200/70 bg-white/70 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover ${
+                className={`rounded-md border border-gray-200/70 bg-white/70 p-3 dark:border-gray-800 dark:bg-brand-surfaceHover ${
                   topMetrics.length % 2 === 1 && index === topMetrics.length - 1 ? 'col-span-2' : ''
                 }`}
               >
-                <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">{metric.label}</p>
-                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{metric.label}</p>
+                <p className="mt-1.5 text-base font-semibold text-gray-900 dark:text-white">
                   {metric.value}
                 </p>
               </div>
@@ -212,21 +236,21 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
       </div>
 
       {items.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {items.map((item, index) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.label}
-                className={`rounded-xl border border-gray-200/70 bg-white/70 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover ${
+                className={`rounded-md border border-gray-200/70 bg-white/70 p-3 dark:border-gray-800 dark:bg-brand-surfaceHover ${
                   items.length % 2 === 1 && index === items.length - 1 ? 'col-span-2' : ''
                 }`}
               >
-                <div className="mb-3 flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  <Icon className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em]">{item.label}</span>
+                <div className="mb-2 flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">{item.label}</span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white sm:text-base">
                   {item.value}
                 </p>
               </div>
@@ -236,7 +260,7 @@ export const StockOverview: React.FC<StockOverviewProps> = ({ info, isLoading = 
       )}
 
       {isMeaningful(info.current_volume) && (
-        <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">
           Latest volume: {formatNumber(info.current_volume, locale)} shares
         </p>
       )}

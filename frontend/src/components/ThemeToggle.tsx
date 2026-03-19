@@ -16,13 +16,13 @@ export const ThemeToggle: React.FC = () => {
   return (
     <button
       onClick={toggleDarkMode}
-      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      className="rounded-md border border-gray-200 bg-gray-100 p-1.5 transition-colors hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
       aria-label="Toggle dark mode"
     >
       {isDarkMode ? (
-        <Sun className="h-5 w-5 text-yellow-500" />
+        <Sun className="h-4 w-4 text-yellow-500" />
       ) : (
-        <Moon className="h-5 w-5 text-gray-700" />
+        <Moon className="h-4 w-4 text-gray-700" />
       )}
     </button>
   );

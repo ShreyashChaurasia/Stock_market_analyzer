@@ -295,14 +295,17 @@ class MarketDataService:
                 return
             logo_candidates.append(cleaned)
 
+        domain = self._extract_domain(normalized_website)
+        if domain:
+            # Prefer higher-resolution brand logos first to avoid pixelated icons in UI cards.
+            add_candidate(f'https://logo.clearbit.com/{domain}?size=256')
+            add_candidate(f'https://logo.clearbit.com/{domain}')
+
         add_candidate(info.get('logo_url'))
         add_candidate(info.get('logoUrl'))
         add_candidate(cached_info.get('company_logo') if cached_info else None)
 
-        domain = self._extract_domain(normalized_website)
         if domain:
-            # Better brand logo candidates than generic globe favicon fallbacks.
-            add_candidate(f'https://logo.clearbit.com/{domain}')
             add_candidate(f'https://icons.duckduckgo.com/ip3/{domain}.ico')
 
         primary_logo = logo_candidates[0] if logo_candidates else None

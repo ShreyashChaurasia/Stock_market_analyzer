@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { LineChart as LineChartIcon } from 'lucide-react';
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -56,15 +55,12 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
   const selectedMeta = selectedIndex
     ? INDEX_CONFIG.find((item) => item.key === selectedIndex) ?? null
     : null;
-
-  if (!selectedMeta) {
-    return null;
-  }
+  const resolvedIndex = selectedMeta?.key ?? null;
 
   const { data, isLoading, isFetching } = useQuery<IndexHistoricalResponse>({
-    queryKey: ['index-historical', selectedIndex, period],
-    queryFn: () => stockApi.getIndexHistorical(selectedIndex as MarketIndexKey, period),
-    enabled: !!selectedIndex,
+    queryKey: ['index-historical', resolvedIndex, period],
+    queryFn: () => stockApi.getIndexHistorical(resolvedIndex as MarketIndexKey, period),
+    enabled: Boolean(resolvedIndex),
     staleTime: 60000,
     refetchInterval: 180000,
   });
@@ -75,12 +71,16 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
   const absoluteChange = latest !== null && first !== null ? latest - first : null;
   const percentChange = absoluteChange !== null && first ? (absoluteChange / first) * 100 : null;
 
+  if (!selectedMeta) {
+    return null;
+  }
+
   return (
-    <div className="glass-panel p-5">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass-panel p-4">
+      <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <LineChartIcon className="h-5 w-5 text-brand-accent" />
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+          <LineChartIcon className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white tracking-tight">
             Index Chart
           </h3>
         </div>
@@ -90,9 +90,9 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
             <button
               key={option.value}
               onClick={() => setPeriod(option.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold tracking-wide transition-all ${
+              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] transition-colors ${
                 period === option.value
-                  ? 'bg-brand-accent text-brand-dark shadow-sm'
+                  ? 'bg-brand-accent text-white shadow-sm'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400'
               }`}
             >
@@ -102,22 +102,22 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200/80 bg-white/80 p-4 dark:border-gray-800 dark:bg-brand-surfaceHover">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="rounded-md border border-gray-200/80 bg-white/80 p-3 dark:border-gray-800 dark:bg-brand-surfaceHover">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
               {selectedMeta.label}
             </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
               {data?.name ?? '--'} ({data?.symbol ?? '--'})
             </p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-gray-900 dark:text-white">
+            <p className="text-base font-semibold text-gray-900 dark:text-white">
               {latest !== null && data ? formatCurrency(latest, data.currency) : '--'}
             </p>
             {absoluteChange !== null && percentChange !== null && (
-              <p className={`text-xs font-semibold ${absoluteChange >= 0 ? 'text-financial-green' : 'text-financial-red'}`}>
+              <p className={`text-[11px] font-semibold ${absoluteChange >= 0 ? 'text-financial-green' : 'text-financial-red'}`}>
                 {absoluteChange >= 0 ? '+' : ''}
                 {absoluteChange.toFixed(2)} ({absoluteChange >= 0 ? '+' : ''}
                 {percentChange.toFixed(2)}%)
@@ -128,7 +128,7 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
 
         {isLoading && (
           <div className="animate-pulse">
-            <div className="h-56 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-52 rounded bg-gray-200 dark:bg-gray-700" />
           </div>
         )}
 
@@ -137,9 +137,9 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
         )}
 
         {!isLoading && chartRows.length > 0 && (
-          <div className="h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartRows} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+              <LineChart data={chartRows} margin={{ top: 6, right: 4, left: -10, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.18} />
                 <XAxis
                   dataKey="date"
@@ -166,13 +166,12 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
                     color: '#fff',
                   }}
                 />
-                <Legend />
                 <Line
                   type="monotone"
                   dataKey="close"
                   name={selectedMeta.label}
                   stroke={selectedMeta.chartColor}
-                  strokeWidth={2.8}
+                  strokeWidth={2.4}
                   dot={false}
                   activeDot={{ r: 4 }}
                 />

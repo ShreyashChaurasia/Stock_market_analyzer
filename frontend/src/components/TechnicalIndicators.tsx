@@ -31,12 +31,12 @@ export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="glass-panel p-4">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
-          <div className="space-y-3">
+          <div className="mb-3 h-5 w-1/2 rounded bg-gray-200 dark:bg-gray-700"></div>
+          <div className="space-y-2.5">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div key={i} className="h-14 rounded bg-gray-200 dark:bg-gray-700"></div>
             ))}
           </div>
         </div>
@@ -77,24 +77,24 @@ export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <div className="flex items-center space-x-2 mb-4">
-        <Activity className="h-5 w-5 text-primary-600" />
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="glass-panel p-4">
+      <div className="mb-3 flex items-center space-x-2">
+        <Activity className="h-4 w-4 text-primary-600" />
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           Technical Indicators
         </h3>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {indicatorsList.map((indicator, index) => (
           <div
             key={index}
-            className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+            className="flex items-center justify-between rounded-md border border-gray-200 p-2.5 dark:border-gray-700"
           >
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-xs font-semibold text-gray-900 dark:text-white sm:text-sm">
                 {indicator.name}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
                 {typeof indicator.value === 'number' && indicator.name !== 'RSI (14)' && indicator.name !== 'MACD'
                   ? formatCurrency(indicator.value, currency)
                   : typeof indicator.value === 'number'
@@ -102,9 +102,9 @@ export const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ ticker
                     : indicator.value}
               </p>
             </div>
-            <div className={`flex items-center space-x-1 px-3 py-1 rounded-full ${getSignalColor(indicator.signal)}`}>
+            <div className={`flex items-center space-x-1 rounded-full px-2.5 py-1 text-xs font-semibold ${getSignalColor(indicator.signal)}`}>
               {getSignalIcon(indicator.signal)}
-              <span className="text-sm font-medium">{indicator.signal}</span>
+              <span>{indicator.signal}</span>
             </div>
           </div>
         ))}

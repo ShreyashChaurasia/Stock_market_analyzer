@@ -43,21 +43,22 @@ export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ mode
   const colors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444'];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+    <div className="glass-panel p-4">
+      <h3 className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
         Model Performance Comparison
       </h3>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 10 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} margin={{ top: 12, right: 10, left: -10, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-          <XAxis dataKey="metric" stroke="#6b7280" tickLine={false} axisLine={false} />
+          <XAxis dataKey="metric" stroke="#6b7280" tickLine={false} axisLine={false} fontSize={12} />
           <YAxis
             domain={[0, 100]}
             tickFormatter={(value: number) => `${value}%`}
             stroke="#6b7280"
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={38}
+            fontSize={12}
           />
           <Tooltip
             formatter={(value: number | undefined) => value !== undefined ? `${value.toFixed(2)}%` : '0%'}
@@ -75,7 +76,7 @@ export const ModelComparisonChart: React.FC<ModelComparisonChartProps> = ({ mode
               name={model.model}
               dataKey={model.model}
               fill={colors[index % colors.length]}
-              radius={[4, 4, 0, 0]}
+              radius={[3, 3, 0, 0]}
             />
           ))}
         </BarChart>

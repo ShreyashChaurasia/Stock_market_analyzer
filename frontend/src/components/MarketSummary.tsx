@@ -19,22 +19,22 @@ const IndexCard: React.FC<IndexCardProps> = ({ name, marketData, isSelected, onC
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-lg border p-4 text-left transition-colors ${
+      className={`w-full rounded-md border p-3 text-left transition-colors ${
         isSelected
-          ? 'border-brand-accent ring-1 ring-brand-accent/30 bg-white dark:bg-brand-dark/60'
+          ? 'border-brand-accent bg-blue-50/40 ring-1 ring-brand-accent/30 dark:bg-brand-dark/60'
           : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-brand-dark/50 dark:hover:border-gray-700'
       }`}
     >
-      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{name}</p>
-      <p className="text-xl font-mono font-bold text-gray-900 dark:text-white mt-1">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{name}</p>
+      <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white md:text-lg">
         {marketData
           ? marketData.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
           : '--'}
       </p>
       {marketData ? (
-        <div className={`flex items-center space-x-1 mt-2 text-sm font-mono ${isPositive ? 'text-financial-green' : 'text-financial-red'}`}>
-          {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span className="font-medium">
+        <div className={`mt-1.5 flex items-center space-x-1 text-xs font-medium ${isPositive ? 'text-financial-green' : 'text-financial-red'}`}>
+          {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+          <span>
             {isPositive ? '+' : ''}{marketData.change.toFixed(2)}
           </span>
           <span>
@@ -63,10 +63,10 @@ export const MarketSummary: React.FC<MarketSummaryProps> = ({ selectedIndex, onS
 
   if (isLoading) {
     return (
-      <div className="glass-panel p-6">
-        <div className="flex items-center space-x-2 mb-4 text-gray-900 dark:text-white">
-          <Globe className="h-6 w-6 animate-pulse text-brand-accent" />
-          <h3 className="text-lg font-bold tracking-tight">Loading Market Data...</h3>
+      <div className="glass-panel p-4">
+        <div className="mb-2 flex items-center space-x-2 text-gray-900 dark:text-white">
+          <Globe className="h-5 w-5 animate-pulse text-brand-accent" />
+          <h3 className="text-base font-semibold tracking-tight">Loading Market Data...</h3>
         </div>
       </div>
     );
@@ -77,18 +77,18 @@ export const MarketSummary: React.FC<MarketSummaryProps> = ({ selectedIndex, onS
   const marketData = data.data;
 
   return (
-    <div className="glass-panel p-5">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
+    <div className="glass-panel p-4">
+      <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <div className="flex items-center space-x-2">
-          <Globe className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight uppercase tracking-wider">Live Market Overview</h3>
+          <Globe className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+          <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-900 dark:text-white">Live Market Overview</h3>
         </div>
-        <div className="flex items-center space-x-1 text-xs font-medium text-brand-accent bg-brand-accent/5 dark:bg-brand-accent/10 px-3 py-1.5 rounded-full border border-brand-accent/20 dark:border-brand-accent/20">
+        <div className="flex items-center space-x-1 rounded-full border border-brand-accent/20 bg-brand-accent/5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-accent dark:bg-brand-accent/10 dark:border-brand-accent/20">
           <Clock className="h-3 w-3" />
-          <span className="uppercase tracking-wider">Real-time</span>
+          <span>Real-time</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 2xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 2xl:grid-cols-7">
         {INDEX_CONFIG.map((indexItem) => (
           <IndexCard
             key={indexItem.key}

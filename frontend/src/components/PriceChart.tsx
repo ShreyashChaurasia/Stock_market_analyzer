@@ -118,7 +118,7 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
     const container = chartContainerRef.current;
     const chart = createChart(container, {
       width: container.clientWidth,
-      height: 420,
+      height: 360,
       layout: {
         background: { type: ColorType.Solid, color: isDarkMode ? '#111827' : '#FFFFFF' },
         textColor: isDarkMode ? '#D1D5DB' : '#475569',
@@ -166,9 +166,9 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
     if (chartType === 'line') {
       const lineSeries = chart.addSeries(LineSeries, {
         color: '#2563EB',
-        lineWidth: 3,
+        lineWidth: 2,
         crosshairMarkerVisible: true,
-        crosshairMarkerRadius: 4,
+        crosshairMarkerRadius: 3,
         priceLineVisible: true,
         lastValueVisible: true,
       });
@@ -265,10 +265,10 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
 
   if (isLoading) {
     return (
-      <div className="glass-panel p-6">
+      <div className="glass-panel p-4">
         <div className="animate-pulse">
-          <div className="mb-4 h-6 w-1/3 rounded bg-gray-200 dark:bg-gray-700" />
-          <div className="h-[420px] rounded-2xl bg-gray-200 dark:bg-gray-700" />
+          <div className="mb-3 h-5 w-1/3 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="h-[360px] rounded-md bg-gray-200 dark:bg-gray-700" />
         </div>
       </div>
     );
@@ -276,11 +276,11 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
 
   if (!data?.data?.length || !activePoint) {
     return (
-      <div className="glass-panel p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+      <div className="glass-panel p-4">
+        <h3 className="mb-2 text-base font-semibold text-gray-900 dark:text-white">
           {ticker} Price Chart
         </h3>
-        <p className="text-gray-500 dark:text-gray-400">No historical data available for this range.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">No historical data available for this range.</p>
       </div>
     );
   }
@@ -291,38 +291,38 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
   const percentChange = previousClose ? (absoluteChange / previousClose) * 100 : 0;
 
   return (
-    <div className="glass-panel p-6">
-      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div className="glass-panel p-4">
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <BarChart3 className="h-5 w-5 text-brand-accent" />
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+            <BarChart3 className="h-4 w-4 text-brand-accent" />
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white tracking-tight">
               {ticker} {chartType === 'line' ? 'Line' : 'Candlestick'} Chart
             </h3>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Close</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Close</p>
+              <p className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                 {formatCurrency(activePoint.close, resolvedCurrency)}
               </p>
             </div>
             <div className={`min-w-0 ${absoluteChange >= 0 ? 'text-financial-green' : 'text-financial-red'}`}>
-              <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Change</p>
-              <p className="text-lg font-semibold">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Change</p>
+              <p className="text-sm font-semibold">
                 {absoluteChange >= 0 ? '+' : ''}
                 {formatCurrency(absoluteChange, resolvedCurrency)} ({absoluteChange >= 0 ? '+' : ''}
                 {percentChange.toFixed(2)}%)
               </p>
             </div>
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Volume</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Volume</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
                 {formatLargeNumber(activePoint.volume, locale)}
               </p>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-2.5 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span>Open {formatCurrency(activePoint.open, resolvedCurrency)}</span>
             <span>High {formatCurrency(activePoint.high, resolvedCurrency)}</span>
             <span>Low {formatCurrency(activePoint.low, resolvedCurrency)}</span>
@@ -330,8 +330,8 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 xl:items-end">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 xl:items-end">
+          <div className="flex flex-wrap gap-1.5">
             {TIMEFRAMES.map((option) => (
               <button
                 key={option.value}
@@ -339,9 +339,9 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
                   setTimeframe(option.value);
                   setHoveredTime(null);
                 }}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold tracking-wide transition-all ${
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] transition-colors ${
                   timeframe === option.value
-                    ? 'bg-brand-accent text-brand-dark shadow-sm'
+                    ? 'bg-brand-accent text-white shadow-sm'
                     : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400 dark:hover:text-brand-accent'
                 }`}
               >
@@ -349,12 +349,12 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setChartType('candles')}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold tracking-wide transition-all ${
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 chartType === 'candles'
-                  ? 'bg-brand-accent text-brand-dark shadow-sm'
+                  ? 'bg-brand-accent text-white shadow-sm'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400'
               }`}
             >
@@ -362,43 +362,43 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
             </button>
             <button
               onClick={() => setChartType('line')}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold tracking-wide transition-all ${
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 chartType === 'line'
-                  ? 'bg-brand-accent text-brand-dark shadow-sm'
+                  ? 'bg-brand-accent text-white shadow-sm'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400'
               }`}
             >
               Line
             </button>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setShowMA((current) => !current)}
-              className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 showMA
                   ? 'bg-brand-accent/10 text-brand-accent ring-1 ring-brand-accent/30'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400'
               }`}
             >
-              <Activity className="h-4 w-4" />
+              <Activity className="h-3.5 w-3.5" />
               Moving Averages
             </button>
             <button
               onClick={() => chartRef.current?.timeScale().fitContent()}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 transition-all hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400"
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 transition-colors hover:border-brand-accent hover:text-brand-accent dark:border-gray-800 dark:bg-brand-surfaceHover dark:text-gray-400"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="h-3.5 w-3.5" />
               Reset Zoom
             </button>
           </div>
           {showMA && (
-            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
               <span className="inline-flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#F59E0B]" />
+                <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
                 SMA 20
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]" />
+                <span className="h-2 w-2 rounded-full bg-[#8B5CF6]" />
                 SMA 50
               </span>
             </div>
@@ -408,10 +408,10 @@ export const PriceChart: React.FC<PriceChartProps> = ({ ticker, currency }) => {
 
       <div
         ref={chartContainerRef}
-        className="h-[420px] w-full overflow-hidden rounded-2xl border border-gray-200/80 bg-white/80 dark:border-gray-800 dark:bg-[#111827]"
+        className="h-[360px] w-full overflow-hidden rounded-md border border-gray-200/80 bg-white/80 dark:border-gray-800 dark:bg-[#111827]"
       />
 
-      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
         Scroll to zoom, drag to pan, and double-click to reset the visible range. Zoom now stays centered.
       </p>
     </div>

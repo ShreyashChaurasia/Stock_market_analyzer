@@ -93,23 +93,23 @@ export const Dashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-5 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         {/* Market Summary - Always visible */}
         <MarketSummary selectedIndex={selectedIndex} onSelectIndex={handleIndexSelect} />
         {selectedIndex && <IndicesCharts selectedIndex={selectedIndex} />}
 
         {/* Hero Section */}
-        <div className="text-center py-4">
-          <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
-            ML-Powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">Stock Analysis</span>
+        <div className="py-2 text-center">
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-3xl">
+            Quant-Driven Stock Analysis
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
+          <p className="mx-auto max-w-2xl text-sm text-gray-600 dark:text-gray-400">
             Real-time analysis and machine-learning forecasts for US and Indian equities.
           </p>
         </div>
 
         {/* Search Section */}
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto max-w-3xl">
           <StockSearch onSearch={handleSearch} loading={isLoading} />
         </div>
 
@@ -128,7 +128,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Results Section */}
         {data && !isLoading && (
-          <div ref={stockInfoRef} className="space-y-6">
+          <div ref={stockInfoRef} className="space-y-4">
             {/* Top Watchlist Button for Symmetry */}
             <div className="flex justify-end w-full">
                 <WatchlistButton
@@ -142,7 +142,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Statistics Cards */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <StatsCard
                   title="Current Price"
                   value={formatCurrency(data.latest_close, resolvedCurrency)}
@@ -191,13 +191,13 @@ export const Dashboard: React.FC = () => {
               </div>
 
             {/* Main Content */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <div className="space-y-6 xl:col-span-2">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <div className="space-y-4 xl:col-span-2">
                 <PriceChart ticker={data.ticker} currency={resolvedCurrency} />
                 <TechnicalIndicators ticker={data.ticker} currency={resolvedCurrency} />
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <PredictionCard prediction={data} currency={resolvedCurrency} />
                 <StockOverview info={stockInfo} isLoading={isStockInfoLoading} />
               </div>
@@ -212,15 +212,15 @@ export const Dashboard: React.FC = () => {
 
         {/* Empty State */}
         {!selectedTicker && !isLoading && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="glass-panel p-10 md:p-16 text-center h-full flex flex-col items-center justify-center">
-              <div className="p-4 rounded-full bg-gray-100 dark:bg-brand-surfaceHover mb-6">
-                <BarChart3 className="h-12 w-12 text-brand-accent dark:text-brand-accent" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="glass-panel flex h-full flex-col items-center justify-center p-8 text-center md:p-10">
+              <div className="mb-4 rounded-full bg-gray-100 p-3 dark:bg-brand-surfaceHover">
+                <BarChart3 className="h-8 w-8 text-brand-accent dark:text-brand-accent" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
+              <h3 className="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                 Terminal Ready
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">
+              <p className="mx-auto max-w-md text-sm text-gray-500 dark:text-gray-400">
                 Enter a stock ticker above (e.g., AAPL, RELIANCE.NS) to execute deep analysis.
               </p>
             </div>
