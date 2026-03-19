@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
         {/* Hero Section */}
         <div className="py-2 text-center">
           <h1 className="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-3xl">
-            Quant-Driven Stock Analysis
+            ML-Based Stock Analysis
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-gray-600 dark:text-gray-400">
             Real-time analysis and machine-learning forecasts for US and Indian equities.
