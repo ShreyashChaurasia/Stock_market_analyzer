@@ -27,6 +27,8 @@ from src.core.data_fetcher import fetch_stock_data
 from src.core.indicators import add_indicators
 from src.core.feature_engineering import add_ml_features
 from src.services.market_data_service import market_service
+from src.services.news_service import news_service
+from src.services.dashboard_service import dashboard_service
 
 logger = get_logger(__name__)
 
@@ -506,6 +508,182 @@ async def search_market_symbols(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to search symbols: {str(e)}"
+        )
+
+
+@app.get("/api/news/latest", tags=["News"])
+async def get_latest_news(limit: int = 10, market: str = "ALL"):
+    """
+    Get latest market news.
+
+    Args:
+        limit: Maximum number of articles (1-30)
+        market: ALL, US, or INDIA
+    """
+    bounded_limit = max(1, min(limit, 30))
+    normalized_market = (market or "ALL").upper()
+
+    if normalized_market not in {"ALL", "US", "INDIA"}:
+        raise HTTPException(status_code=400, detail="market must be one of: ALL, US, INDIA")
+
+    try:
+        articles = news_service.get_latest_news(limit=bounded_limit, market=normalized_market)
+        return {
+            "success": True,
+            "provider": news_service.provider,
+            "market": normalized_market,
+            "total": len(articles),
+            "data": articles,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching latest news: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch latest news: {str(e)}")
+
+
+@app.get("/api/news/trending", tags=["News"])
+async def get_trending_news(limit: int = 10, market: str = "ALL"):
+    """
+    Get trending market news and ticker mention counts.
+
+    Args:
+        limit: Maximum number of articles/tickers (1-20)
+        market: ALL, US, or INDIA
+    """
+    bounded_limit = max(1, min(limit, 20))
+    normalized_market = (market or "ALL").upper()
+
+    if normalized_market not in {"ALL", "US", "INDIA"}:
+        raise HTTPException(status_code=400, detail="market must be one of: ALL, US, INDIA")
+
+    try:
+        result = news_service.get_trending_news(limit=bounded_limit, market=normalized_market)
+        return {
+            "success": True,
+            **result,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching trending news: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch trending news: {str(e)}")
+
+
+@app.get("/api/news/stock/{ticker}", tags=["News"])
+async def get_stock_news(ticker: str, limit: int = 10):
+    """
+    Get latest news related to a specific stock ticker.
+
+    Args:
+        ticker: Stock ticker symbol
+        limit: Maximum number of articles (1-20)
+    """
+    normalized_ticker = (ticker or "").strip().upper()
+    if not normalized_ticker:
+        raise HTTPException(status_code=400, detail="ticker is required")
+
+    bounded_limit = max(1, min(limit, 20))
+
+    try:
+        articles = news_service.get_stock_news(normalized_ticker, limit=bounded_limit)
+        return {
+            "success": True,
+            "provider": news_service.provider,
+            "ticker": normalized_ticker,
+            "total": len(articles),
+            "data": articles,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching stock news for {normalized_ticker}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch stock news: {str(e)}")
+
+
+@app.get("/api/dashboard/high-confidence", tags=["Dashboard"])
+async def get_high_confidence_dashboard(
+    market: str = "ALL",
+    limit: int = settings.HIGH_CONFIDENCE_DEFAULT_LIMIT,
+    watchlist: str | None = None,
+    include_news: bool = False,
+    refresh: bool = False,
+    confidence_threshold: float | None = None,
+    min_auc: float | None = None,
+):
+    """
+    Get stocks ranked for Quant Discovery.
+
+    Args:
+        market: ALL, US, or INDIA
+        limit: Maximum stocks to return (1-100)
+        watchlist: Optional comma-separated symbols from user watchlist
+        include_news: Include top 2 related articles for each stock
+        refresh: Ignore cache and force fresh predictions
+        confidence_threshold: Override confidence threshold (0-1)
+        min_auc: Override minimum AUC threshold (0-1)
+    """
+    try:
+        result = dashboard_service.get_high_confidence_predictions(
+            market=market,
+            limit=limit,
+            watchlist=watchlist,
+            include_news=include_news,
+            refresh=refresh,
+            confidence_threshold=confidence_threshold,
+            min_auc=min_auc,
+        )
+        return {
+            "success": True,
+            **result,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error building quant discovery dashboard: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build quant discovery dashboard: {str(e)}",
+        )
+
+
+@app.post("/api/dashboard/high-confidence/refresh", tags=["Dashboard"])
+async def refresh_high_confidence_dashboard(
+    market: str = "ALL",
+    limit: int = settings.HIGH_CONFIDENCE_DEFAULT_LIMIT,
+    watchlist: str | None = None,
+    include_news: bool = False,
+    confidence_threshold: float | None = None,
+    min_auc: float | None = None,
+):
+    """
+    Force-refresh Quant Discovery snapshot cache in batched mode.
+
+    Args:
+        market: ALL, US, or INDIA
+        limit: Maximum stocks to return (1-100)
+        watchlist: Optional comma-separated symbols from user watchlist
+        include_news: Include top 2 related articles for each stock
+        confidence_threshold: Override confidence threshold (0-1)
+        min_auc: Override minimum AUC threshold (0-1)
+    """
+    try:
+        result = dashboard_service.refresh_high_confidence_snapshot(
+            market=market,
+            limit=limit,
+            watchlist=watchlist,
+            include_news=include_news,
+            confidence_threshold=confidence_threshold,
+            min_auc=min_auc,
+        )
+        return {
+            "success": True,
+            "message": "Quant Discovery snapshot refreshed",
+            **result,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error refreshing quant discovery dashboard: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to refresh quant discovery dashboard: {str(e)}",
         )
 
 # Entry Point

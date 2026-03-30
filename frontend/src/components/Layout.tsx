@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, BarChart3, Home, Github } from 'lucide-react';
+import { TrendingUp, BarChart3, Home, Github, Newspaper, Radar } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
@@ -21,6 +21,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Model Comparison', href: '/models', icon: BarChart3 },
+    { name: 'News', href: '/news', icon: Newspaper },
+    { name: 'Quant Discovery', href: '/quant-discovery', icon: Radar },
   ];
 
   return (
@@ -49,7 +51,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </a>
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentPage === item.href;
+                const isActive =
+                  currentPage === item.href
+                  || (item.href === '/quant-discovery' && currentPage === '/high-confidence');
                 return (
                   <a
                     key={item.name}

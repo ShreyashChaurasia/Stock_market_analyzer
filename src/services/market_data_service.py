@@ -1,9 +1,15 @@
+import re
 import pandas as pd
 import yfinance as yf
 from typing import Dict, Any, Optional
 from datetime import datetime
 from urllib.parse import urlparse
+try:
+    from yfinance import EquityQuery
+except Exception:  # pragma: no cover - safeguard for older yfinance versions
+    EquityQuery = None
 
+from src.core.config import settings
 from src.core.logger import get_logger
 from src.core.yfinance_config import configure_yfinance
 
@@ -46,9 +52,37 @@ class MarketDataService:
     }
 
     STOCK_INFO_CACHE_TTL_SECONDS = 6 * 60 * 60
+    SYMBOL_DISCOVERY_MAX_TARGET = 1200
+    SYMBOL_PATTERN = re.compile(r'^[A-Z][A-Z0-9.\-]{0,14}$')
+    DISCOVERY_US_QUERIES = [
+        *list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
+        'nasdaq',
+        'nyse',
+        'technology stock',
+        'financial stock',
+        'energy stock',
+        'healthcare stock',
+        'consumer stock',
+        'industrial stock',
+        'semiconductor stock',
+    ]
+    DISCOVERY_INDIA_QUERIES = [
+        *[f'{letter}.NS' for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],
+        'nse stock',
+        'bse stock',
+        'nifty 50',
+        'sensex',
+        'bank nifty',
+        'india stock market',
+    ]
+    DISCOVERY_FALLBACK_TICKERS = {
+        'US': ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'META', 'AMZN'],
+        'INDIA': ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS'],
+    }
 
     def __init__(self):
         self._stock_info_cache: Dict[str, Dict[str, Any]] = {}
+        self._symbol_discovery_cache: Dict[str, Dict[str, Any]] = {}
 
     @staticmethod
     def infer_currency_from_ticker(ticker: str) -> str:
@@ -219,6 +253,266 @@ class MarketDataService:
             'data': stock_info,
         }
 
+    @staticmethod
+    def _normalize_market_scope(market: str | None) -> str:
+        normalized = (market or 'ALL').strip().upper()
+        if normalized not in {'ALL', 'US', 'INDIA'}:
+            return 'ALL'
+        return normalized
+
+    @staticmethod
+    def _is_indian_symbol(symbol: str, exchange: str | None = None) -> bool:
+        exchange_upper = (exchange or '').upper()
+        return (
+            symbol.endswith('.NS')
+            or symbol.endswith('.BO')
+            or 'NSE' in exchange_upper
+            or 'BSE' in exchange_upper
+        )
+
+    @classmethod
+    def _is_valid_equity_symbol(cls, symbol: str, quote_type: str | None = None) -> bool:
+        if not symbol or symbol.startswith('^') or '=' in symbol:
+            return False
+        if not cls.SYMBOL_PATTERN.match(symbol):
+            return False
+        normalized_quote_type = (quote_type or '').strip().upper()
+        if normalized_quote_type and normalized_quote_type != 'EQUITY':
+            return False
+        return True
+
+    def _get_cached_symbol_discovery(
+        self,
+        cache_key: str,
+        ttl_seconds: int,
+    ) -> Optional[list[str]]:
+        cached_entry = self._symbol_discovery_cache.get(cache_key)
+        if not cached_entry:
+            return None
+
+        cached_at = cached_entry.get('cached_at')
+        if not isinstance(cached_at, datetime):
+            return None
+
+        age_seconds = (datetime.utcnow() - cached_at).total_seconds()
+        if age_seconds > ttl_seconds:
+            self._symbol_discovery_cache.pop(cache_key, None)
+            return None
+
+        symbols = cached_entry.get('symbols')
+        if isinstance(symbols, list):
+            return symbols
+        return None
+
+    def _cache_symbol_discovery(self, cache_key: str, symbols: list[str]) -> None:
+        self._symbol_discovery_cache[cache_key] = {
+            'cached_at': datetime.utcnow(),
+            'symbols': symbols,
+        }
+
+    def _discover_symbols_for_market(
+        self,
+        market: str,
+        target_count: int,
+        per_query_limit: int,
+    ) -> list[str]:
+        if target_count <= 0:
+            return []
+
+        query_pool = (
+            self.DISCOVERY_INDIA_QUERIES
+            if market == 'INDIA'
+            else self.DISCOVERY_US_QUERIES
+        )
+
+        discovered: list[str] = []
+        seen: set[str] = set()
+        max_results = max(15, min(per_query_limit * 3, 120))
+
+        for query in query_pool:
+            try:
+                search = yf.Search(query, max_results=max_results)
+                quotes = getattr(search, 'quotes', []) or []
+            except Exception as exc:
+                logger.debug(f"Ticker discovery query failed for '{query}': {exc}")
+                continue
+
+            for quote in quotes:
+                symbol = str(quote.get('symbol') or '').upper().strip()
+                if not symbol or symbol in seen:
+                    continue
+
+                exchange = str(
+                    quote.get('exchDisp')
+                    or quote.get('exchange')
+                    or quote.get('exch')
+                    or ''
+                ).strip()
+                quote_type = str(quote.get('quoteType') or '').strip()
+
+                if not self._is_valid_equity_symbol(symbol, quote_type):
+                    continue
+
+                is_indian = self._is_indian_symbol(symbol, exchange)
+                if market == 'INDIA' and not is_indian:
+                    continue
+                if market == 'US' and is_indian:
+                    continue
+
+                seen.add(symbol)
+                discovered.append(symbol)
+                if len(discovered) >= target_count:
+                    return discovered
+
+        for fallback_symbol in self.DISCOVERY_FALLBACK_TICKERS.get(market, []):
+            symbol = fallback_symbol.upper().strip()
+            if symbol and symbol not in seen:
+                seen.add(symbol)
+                discovered.append(symbol)
+            if len(discovered) >= target_count:
+                break
+
+        return discovered
+
+    def _screen_symbols_for_market(self, market: str, target_count: int) -> list[str]:
+        if target_count <= 0 or EquityQuery is None:
+            return []
+
+        region_code = 'in' if market == 'INDIA' else 'us'
+        query = EquityQuery('eq', ['region', region_code])
+        page_size = min(250, max(50, target_count))
+        max_offset = max(target_count * 3, 750)
+
+        discovered: list[str] = []
+        seen: set[str] = set()
+        offset = 0
+
+        while len(discovered) < target_count and offset < max_offset:
+            try:
+                response = yf.screen(
+                    query,
+                    offset=offset,
+                    size=page_size,
+                    sortField='ticker',
+                    sortAsc=True,
+                )
+            except Exception as exc:
+                logger.debug(f"Screener discovery failed for market={market} offset={offset}: {exc}")
+                break
+
+            quotes = response.get('quotes', []) or []
+            if not quotes:
+                break
+
+            for quote in quotes:
+                symbol = str(quote.get('symbol') or '').upper().strip()
+                if not symbol or symbol in seen:
+                    continue
+
+                exchange = str(
+                    quote.get('exchange')
+                    or quote.get('fullExchangeName')
+                    or quote.get('quoteSourceName')
+                    or ''
+                ).strip()
+                quote_type = str(quote.get('quoteType') or '').strip()
+
+                if not self._is_valid_equity_symbol(symbol, quote_type):
+                    continue
+
+                is_indian = self._is_indian_symbol(symbol, exchange)
+                if market == 'INDIA' and not is_indian:
+                    continue
+                if market == 'US' and is_indian:
+                    continue
+
+                seen.add(symbol)
+                discovered.append(symbol)
+                if len(discovered) >= target_count:
+                    break
+
+            if len(quotes) < page_size:
+                break
+            offset += len(quotes)
+
+        return discovered
+
+    def discover_liquid_symbols(
+        self,
+        market: str = 'ALL',
+        target_count: int = 600,
+        per_query_limit: int = 35,
+    ) -> list[str]:
+        normalized_market = self._normalize_market_scope(market)
+        bounded_target = max(50, min(int(target_count), self.SYMBOL_DISCOVERY_MAX_TARGET))
+        bounded_query_limit = max(10, min(int(per_query_limit), 100))
+        cache_ttl = max(300, int(settings.HIGH_CONFIDENCE_DISCOVERY_CACHE_TTL))
+        cache_key = f'{normalized_market}:{bounded_target}:{bounded_query_limit}'
+
+        cached_symbols = self._get_cached_symbol_discovery(cache_key, cache_ttl)
+        if cached_symbols is not None:
+            return cached_symbols
+
+        if normalized_market == 'ALL':
+            us_target = max(200, int(bounded_target * 0.7))
+            india_target = max(120, bounded_target - us_target)
+            us_symbols = self._screen_symbols_for_market('US', us_target)
+            if len(us_symbols) < us_target:
+                us_symbols.extend(
+                    self._discover_symbols_for_market(
+                        'US',
+                        us_target - len(us_symbols),
+                        bounded_query_limit,
+                    )
+                )
+
+            india_symbols = self._screen_symbols_for_market('INDIA', india_target)
+            if len(india_symbols) < india_target:
+                india_symbols.extend(
+                    self._discover_symbols_for_market(
+                        'INDIA',
+                        india_target - len(india_symbols),
+                        bounded_query_limit,
+                    )
+                )
+
+            merged: list[str] = []
+            merged_seen: set[str] = set()
+            for symbol in us_symbols + india_symbols:
+                if symbol in merged_seen:
+                    continue
+                merged.append(symbol)
+                merged_seen.add(symbol)
+                if len(merged) >= bounded_target:
+                    break
+
+            discovered_symbols = merged
+        else:
+            discovered_symbols = self._screen_symbols_for_market(normalized_market, bounded_target)
+            if len(discovered_symbols) < bounded_target:
+                discovered_symbols.extend(
+                    self._discover_symbols_for_market(
+                        normalized_market,
+                        bounded_target - len(discovered_symbols),
+                        bounded_query_limit,
+                    )
+                )
+
+            deduped_symbols: list[str] = []
+            seen_symbols: set[str] = set()
+            for symbol in discovered_symbols:
+                normalized_symbol = symbol.upper().strip()
+                if not normalized_symbol or normalized_symbol in seen_symbols:
+                    continue
+                deduped_symbols.append(normalized_symbol)
+                seen_symbols.add(normalized_symbol)
+                if len(deduped_symbols) >= bounded_target:
+                    break
+            discovered_symbols = deduped_symbols
+
+        self._cache_symbol_discovery(cache_key, discovered_symbols)
+        return discovered_symbols
+
     def _estimate_dividend_yield(self, stock: yf.Ticker, current_price: float) -> Optional[float]:
         if current_price <= 0:
             return None
@@ -316,7 +610,7 @@ class MarketDataService:
         if not normalized_query:
             return []
 
-        normalized_market = (market or 'ALL').upper()
+        normalized_market = self._normalize_market_scope(market)
         bounded_limit = max(1, min(limit, 20))
 
         try:
@@ -341,12 +635,7 @@ class MarketDataService:
                 or ''
             ).strip()
             quote_type = str(quote.get('quoteType') or '').strip()
-            is_indian = (
-                symbol.endswith('.NS')
-                or symbol.endswith('.BO')
-                or 'NSE' in exchange.upper()
-                or 'BSE' in exchange.upper()
-            )
+            is_indian = self._is_indian_symbol(symbol, exchange)
 
             if normalized_market == 'INDIA' and not is_indian:
                 continue

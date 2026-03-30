@@ -70,6 +70,35 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
   const first = chartRows.at(0)?.close ?? null;
   const absoluteChange = latest !== null && first !== null ? latest - first : null;
   const percentChange = absoluteChange !== null && first ? (absoluteChange / first) * 100 : null;
+  const yAxisDomain = useMemo<[number, number] | ['auto', 'auto']>(() => {
+    if (chartRows.length === 0) {
+      return ['auto', 'auto'];
+    }
+
+    const closes = chartRows
+      .map((row) => row.close)
+      .filter((value): value is number => Number.isFinite(value));
+    if (closes.length === 0) {
+      return ['auto', 'auto'];
+    }
+
+    const minValue = Math.min(...closes);
+    const maxValue = Math.max(...closes);
+
+    if (minValue === maxValue) {
+      const flatPadding = Math.max(Math.abs(minValue) * 0.01, 1);
+      return [minValue - flatPadding, maxValue + flatPadding];
+    }
+
+    const spread = maxValue - minValue;
+    const proportionalPadding = Math.max(spread * 0.12, Math.abs(maxValue) * 0.002);
+    return [minValue - proportionalPadding, maxValue + proportionalPadding];
+  }, [chartRows]);
+
+  const yAxisTickFormatter = (value: number) =>
+    value.toLocaleString(undefined, {
+      maximumFractionDigits: value < 100 ? 2 : 0,
+    });
 
   if (!selectedMeta) {
     return null;
@@ -150,11 +179,13 @@ export const IndicesCharts: React.FC<IndicesChartsProps> = ({ selectedIndex }) =
                   axisLine={false}
                 />
                 <YAxis
+                  type="number"
+                  domain={yAxisDomain}
                   stroke="#64748b"
                   tickLine={false}
                   axisLine={false}
                   width={72}
-                  tickFormatter={(value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  tickFormatter={yAxisTickFormatter}
                 />
                 <Tooltip
                   labelFormatter={(value: string) => new Date(value).toLocaleString()}

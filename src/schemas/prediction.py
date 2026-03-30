@@ -53,6 +53,8 @@ class PredictionResponse(BaseModel):
     prediction: str
     confidence: float
     confidence_percent: str
+    confidence_tier: str
+    is_very_high_confidence: bool
     model_auc: float
     data_points_used: int
     interpretation: str

@@ -13,11 +13,12 @@ import { TechnicalIndicators } from '../components/TechnicalIndicators';
 import { MarketSummary } from '../components/MarketSummary';
 import { IndicesCharts } from '../components/IndicesCharts';
 import { StockOverview } from '../components/StockOverview';
+import { NewsCard } from '../components/NewsCard';
 import { stockApi } from '../services/api';
-import type { PredictionResponse, StockInfo } from '../types/stock';
+import type { PredictionResponse, StockInfo, StockNewsResponse } from '../types/stock';
 import type { MarketIndexKey } from '../types/stock';
 import { useWatchlistStore } from '../store/watchlistStore';
-import { TrendingUp, Landmark, Target, BarChart3, Activity, Scale } from 'lucide-react';
+import { TrendingUp, Landmark, Target, BarChart3, Activity, Scale, Newspaper } from 'lucide-react';
 import { formatCompactCurrency, formatCurrency, formatLargeNumber, inferCurrencyFromTicker } from '../utils/market';
 
 export const Dashboard: React.FC = () => {
@@ -27,14 +28,30 @@ export const Dashboard: React.FC = () => {
   const { updateWatchlistItem } = useWatchlistStore();
   const stockInfoRef = React.useRef<HTMLDivElement | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery<PredictionResponse>({
+  const { data, isLoading, error: predictionError, refetch } = useQuery<PredictionResponse>({
     queryKey: ['prediction', selectedTicker],
     queryFn: () => stockApi.getPrediction({ ticker: selectedTicker! }),
     enabled: !!selectedTicker,
     retry: 1,
   });
 
-  const { data: stockInfoData, isLoading: isStockInfoLoading } = useQuery<{ data: StockInfo }>({
+  const {
+    data: stockNewsData,
+    isLoading: isStockNewsLoading,
+    error: stockNewsError,
+    refetch: refetchStockNews,
+  } = useQuery<StockNewsResponse>({
+    queryKey: ['stock-news', selectedTicker],
+    queryFn: () => stockApi.getStockNews(selectedTicker!, 8),
+    enabled: !!selectedTicker,
+    retry: 1,
+  });
+
+  const {
+    data: stockInfoData,
+    isLoading: isStockInfoLoading,
+    refetch: refetchStockInfo,
+  } = useQuery<{ data: StockInfo }>({
     queryKey: ['stock-info', selectedTicker],
     queryFn: () => stockApi.getStockInfo(selectedTicker!),
     enabled: !!selectedTicker,
@@ -42,6 +59,12 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleSearch = (ticker: string) => {
+    if ((selectedTicker || '').toUpperCase() === ticker.toUpperCase()) {
+      void refetch();
+      void refetchStockNews();
+      void refetchStockInfo();
+      return;
+    }
     setSelectedTicker(ticker);
   };
 
@@ -119,9 +142,9 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* Error State */}
-        {error && (
+        {predictionError && (
           <ErrorAlert
-            message={(error as Error).message || 'Failed to fetch prediction'}
+            message={(predictionError as Error).message || 'Failed to fetch prediction'}
             onRetry={() => refetch()}
           />
         )}
@@ -201,6 +224,50 @@ export const Dashboard: React.FC = () => {
                 <PredictionCard prediction={data} currency={resolvedCurrency} />
                 <StockOverview info={stockInfo} isLoading={isStockInfoLoading} />
               </div>
+            </div>
+
+            <div className="glass-panel p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Newspaper className="h-4 w-4 text-brand-accent" />
+                <h3 className="text-base font-semibold tracking-tight text-gray-900 dark:text-white">
+                  News for {data.ticker}
+                </h3>
+              </div>
+
+              {isStockNewsLoading && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading latest stock headlines...</p>
+              )}
+
+              {!isStockNewsLoading && stockNewsError && (
+                <div className="space-y-2">
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {(stockNewsError as Error).message || 'Failed to load stock-specific news.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void refetchStockNews();
+                    }}
+                    className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-white hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!isStockNewsLoading && !stockNewsError && stockNewsData && stockNewsData.data.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                  {stockNewsData.data.map((article) => (
+                    <NewsCard key={article.url} article={article} compact />
+                  ))}
+                </div>
+              )}
+
+              {!isStockNewsLoading && !stockNewsError && stockNewsData && stockNewsData.data.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No fresh headlines available for this ticker right now.
+                </p>
+              )}
             </div>
 
             {/* Bottom Section - Watchlist */}

@@ -12,6 +12,10 @@ import type {
   HistoricalPricesResponse,
   IndexHistoricalResponse,
   MarketIndexKey,
+  LatestNewsResponse,
+  StockNewsResponse,
+  TrendingNewsResponse,
+  HighConfidenceDashboardResponse,
 } from '../types/stock';
 
 const api = axios.create({
@@ -92,6 +96,71 @@ export const stockApi = {
     period: string = '1m'
   ): Promise<IndexHistoricalResponse> => {
     const response = await api.get(API_ENDPOINTS.indexHistorical(market, period));
+    return response.data;
+  },
+
+  getLatestNews: async (
+    market: 'ALL' | 'US' | 'INDIA' = 'ALL',
+    limit: number = 10
+  ): Promise<LatestNewsResponse> => {
+    const response = await api.get(API_ENDPOINTS.latestNews(market, limit));
+    return response.data;
+  },
+
+  getTrendingNews: async (
+    market: 'ALL' | 'US' | 'INDIA' = 'ALL',
+    limit: number = 10
+  ): Promise<TrendingNewsResponse> => {
+    const response = await api.get(API_ENDPOINTS.trendingNews(market, limit));
+    return response.data;
+  },
+
+  getStockNews: async (ticker: string, limit: number = 6): Promise<StockNewsResponse> => {
+    const response = await api.get(API_ENDPOINTS.stockNews(ticker, limit));
+    return response.data;
+  },
+
+  getHighConfidenceDashboard: async (
+    market: 'ALL' | 'US' | 'INDIA' = 'ALL',
+    limit: number = 10,
+    watchlist?: string,
+    includeNews: boolean = false,
+    confidenceThreshold?: number,
+    minAuc?: number,
+    refresh: boolean = false
+  ): Promise<HighConfidenceDashboardResponse> => {
+    const response = await api.get(
+      API_ENDPOINTS.highConfidenceDashboard(
+        market,
+        limit,
+        watchlist,
+        includeNews,
+        confidenceThreshold,
+        minAuc,
+        refresh
+      )
+    );
+    return response.data;
+  },
+
+  refreshHighConfidenceDashboard: async (
+    market: 'ALL' | 'US' | 'INDIA' = 'ALL',
+    limit: number = 10,
+    watchlist?: string,
+    includeNews: boolean = false,
+    confidenceThreshold?: number,
+    minAuc?: number
+  ): Promise<HighConfidenceDashboardResponse> => {
+    const response = await api.post(
+      API_ENDPOINTS.refreshHighConfidenceDashboard(
+        market,
+        limit,
+        watchlist,
+        includeNews,
+        confidenceThreshold,
+        minAuc
+      )
+    );
     return response.data;
   },
 };

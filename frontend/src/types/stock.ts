@@ -16,9 +16,88 @@ export interface PredictionResponse {
   prediction: string;
   confidence: number;
   confidence_percent: string;
+  confidence_tier: string;
+  is_very_high_confidence: boolean;
   model_auc: number;
   data_points_used: number;
   interpretation: string;
+}
+
+export interface NewsArticle {
+  title: string;
+  description: string | null;
+  url: string;
+  source: string;
+  published_at: string;
+  image_url: string | null;
+  tickers: string[];
+  market: 'ALL' | 'US' | 'INDIA';
+}
+
+export interface TrendingTicker {
+  ticker: string;
+  mentions: number;
+}
+
+export interface LatestNewsResponse {
+  success: boolean;
+  provider: string;
+  market: 'ALL' | 'US' | 'INDIA';
+  total: number;
+  data: NewsArticle[];
+  timestamp: string;
+}
+
+export interface TrendingNewsResponse {
+  success: boolean;
+  provider: string;
+  market: 'ALL' | 'US' | 'INDIA';
+  articles: NewsArticle[];
+  trending_tickers: TrendingTicker[];
+  generated_at: string;
+}
+
+export interface StockNewsResponse {
+  success: boolean;
+  provider: string;
+  ticker: string;
+  total: number;
+  data: NewsArticle[];
+  timestamp: string;
+}
+
+export interface HighConfidenceStock {
+  ticker: string;
+  prediction: string;
+  confidence: number;
+  confidence_percent: string;
+  confidence_tier: string;
+  is_very_high_confidence: boolean;
+  model_auc: number;
+  probability_up: number;
+  probability_down: number;
+  latest_close: number;
+  currency: string;
+  prediction_date: string;
+  latest_data_date: string;
+  interpretation: string;
+  source: string;
+  news?: NewsArticle[];
+}
+
+export interface HighConfidenceDashboardResponse {
+  success: boolean;
+  message?: string;
+  items: HighConfidenceStock[];
+  evaluated_tickers: number;
+  qualified_count: number;
+  market: 'ALL' | 'US' | 'INDIA';
+  thresholds: {
+    confidence: number;
+    model_auc: number;
+  };
+  generated_at: string;
+  cache_hit?: boolean;
 }
 
 export interface ModelVersion {

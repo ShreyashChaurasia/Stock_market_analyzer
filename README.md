@@ -45,6 +45,13 @@ Stock Market Analyzer is a research-oriented platform that applies supervised ma
 - Historical chart data for supported indices across configurable time periods
 - Stock fundamentals: market cap, P/E ratio, 52-week high/low, dividend yield, beta, sector, industry, company logo
 - Technical indicators with buy/sell/neutral signals: RSI, MACD, SMA-20, SMA-50, Bollinger Bands
+- Latest and trending market news feeds with market filtering (ALL / US / INDIA)
+- Stock-specific headlines available when a ticker is selected
+
+**Signal Discovery Dashboard**
+- Separate Quant Discovery dashboard for symbols that pass confidence and model-quality thresholds
+- Dashboard universe combines predefined symbols and user watchlist tickers
+- Optional news enrichment for each Quant Discovery signal
 
 **Frontend Dashboard**
 - Candlestick and line charts powered by lightweight-charts
@@ -301,6 +308,19 @@ The following variables are read from the `.env` file in the project root:
 | `MIN_TRAINING_SAMPLES` | `100` | Minimum rows required to train a model |
 | `CACHE_ENABLED` | `True` | Enable in-memory caching for stock info |
 | `CACHE_TTL` | `3600` | Cache time-to-live in seconds |
+| `NEWS_PROVIDER` | `gnews` | News provider (`gnews` or `newsapi`) |
+| `GNEWS_API_KEY` | — | API key for GNews |
+| `NEWSAPI_API_KEY` | — | API key for NewsAPI |
+| `NEWS_CACHE_TTL` | `900` | News response cache TTL in seconds |
+| `HIGH_CONFIDENCE_THRESHOLD` | `0.30` | Minimum confidence for the Quant Discovery filter |
+| `HIGH_CONFIDENCE_MIN_AUC` | `0.50` | Minimum model AUC for the Quant Discovery filter |
+| `HIGH_CONFIDENCE_DEFAULT_LIMIT` | `10` | Default number of dashboard rows returned |
+| `HIGH_CONFIDENCE_CACHE_TTL` | `1800` | Cache TTL (seconds) for dashboard prediction snapshots |
+| `HIGH_CONFIDENCE_OUTPUT_MAX_AGE_HOURS` | `24` | Max age of `outputs/*.json` snapshots before refresh |
+| `HIGH_CONFIDENCE_SNAPSHOT_TTL` | `300` | Cache TTL (seconds) for full dashboard response snapshots |
+| `HIGH_CONFIDENCE_MAX_WORKERS` | `4` | Worker threads for batched prediction refresh |
+| `HIGH_CONFIDENCE_NEWS_MAX_WORKERS` | `4` | Worker threads for parallel dashboard news enrichment |
+| `HIGH_CONFIDENCE_LIVE_FALLBACK` | `False` | When `False`, non-refresh requests avoid slow live retraining fallback |
 | `DATABASE_URL` | — | Optional PostgreSQL connection string (future use) |
 | `REDIS_URL` | — | Optional Redis connection URL (future use) |
 
@@ -381,6 +401,45 @@ curl "http://localhost:8000/api/market/index-historical/dowjones?period=6m"
 - `q` (required): Ticker symbol or company name
 - `market` (default: `ALL`): `ALL`, `US`, or `INDIA`
 - `limit` (default: `8`, max: `20`): Maximum number of results
+
+### News
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/news/latest` | Latest market headlines with market filter |
+| `GET` | `/api/news/trending` | Trending headlines plus ticker mention counts |
+| `GET` | `/api/news/stock/{ticker}` | Latest news for a specific ticker |
+
+**GET /api/news/latest** — Query parameters:
+- `market` (default: `ALL`): `ALL`, `US`, or `INDIA`
+- `limit` (default: `10`, max: `30`): Maximum number of articles
+
+**GET /api/news/trending** — Query parameters:
+- `market` (default: `ALL`): `ALL`, `US`, or `INDIA`
+- `limit` (default: `10`, max: `20`): Maximum number of returned articles and trending ticker rows
+
+**GET /api/news/stock/{ticker}** — Query parameters:
+- `limit` (default: `10`, max: `20`): Maximum number of ticker-specific articles
+
+### Quant Discovery
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/dashboard/high-confidence` | Ranked list of Quant Discovery prediction signals |
+| `POST` | `/api/dashboard/high-confidence/refresh` | Force-refresh Quant Discovery snapshot cache in batched mode |
+
+**GET /api/dashboard/high-confidence** — Query parameters:
+- `market` (default: `ALL`): `ALL`, `US`, or `INDIA`
+- `limit` (default: `10`, max: `20`): Maximum rows returned
+- `watchlist` (optional): Comma-separated ticker symbols to merge with default universe
+- `include_news` (default: `false`): Include top 2 related articles per stock
+- `refresh` (default: `false`): Force fresh predictions and bypass cache
+- `confidence_threshold` (optional): Override confidence threshold in range [0, 1]
+- `min_auc` (optional): Override model AUC threshold in range [0, 1]
+
+**POST /api/dashboard/high-confidence/refresh** — Query parameters:
+- Same parameters as `GET /api/dashboard/high-confidence`, excluding `refresh`
+- Always performs batched refresh and updates snapshot cache
 
 ---
 

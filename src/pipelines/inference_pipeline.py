@@ -7,11 +7,28 @@ import json
 import os
 from datetime import datetime
 
+from src.core.config import settings
+
 
 def infer_currency_from_ticker(ticker: str) -> str:
     if ticker.endswith((".NS", ".BO")):
         return "INR"
     return "USD"
+
+
+def get_confidence_signal(confidence: float, model_auc: float) -> tuple[str, bool]:
+    """Classify prediction confidence for dashboard filtering."""
+    very_high = (
+        confidence >= settings.HIGH_CONFIDENCE_THRESHOLD
+        and model_auc >= settings.HIGH_CONFIDENCE_MIN_AUC
+    )
+    if very_high:
+        return "very_high", True
+    if confidence >= 0.25 and model_auc >= 0.52:
+        return "high", False
+    if confidence >= 0.15:
+        return "medium", False
+    return "low", False
 
 
 def run_inference_pipeline(ticker: str, start=None, end=None):
@@ -98,6 +115,8 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     print(f"   Prediction: {prediction_direction}")
     print(f"   Confidence: {confidence:.2%}\n")
 
+    confidence_tier, is_very_high_confidence = get_confidence_signal(confidence, auc)
+
     # Prepare output
     latest_date = df.index[-1].strftime("%Y-%m-%d")
     latest_close = float(df["Close"].iloc[-1])
@@ -113,6 +132,8 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
         "prediction": "UP" if probability_up > 0.5 else "DOWN",
         "confidence": round(confidence, 4),
         "confidence_percent": f"{confidence * 100:.1f}%",
+        "confidence_tier": confidence_tier,
+        "is_very_high_confidence": is_very_high_confidence,
         "model_auc": round(auc, 4),
         "data_points_used": len(df),
         "interpretation": get_interpretation(probability_up, confidence)

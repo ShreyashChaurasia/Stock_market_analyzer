@@ -49,6 +49,40 @@ class Settings(BaseSettings):
     # Cache Configuration
     CACHE_ENABLED: bool = True
     CACHE_TTL: int = 3600
+
+    # News Configuration
+    NEWS_PROVIDER: str = "gnews"
+    GNEWS_API_KEY: Optional[str] = None
+    NEWSAPI_API_KEY: Optional[str] = None
+    NEWS_CACHE_TTL: int = 900
+    NEWS_DEFAULT_LIMIT: int = 10
+
+    # Quant discovery dashboard configuration
+    HIGH_CONFIDENCE_THRESHOLD: float = 0.30
+    HIGH_CONFIDENCE_MIN_AUC: float = 0.50
+    HIGH_CONFIDENCE_DEFAULT_LIMIT: int = 10
+    HIGH_CONFIDENCE_MAX_RESULTS: int = 100
+    HIGH_CONFIDENCE_CACHE_TTL: int = 1800
+    HIGH_CONFIDENCE_OUTPUT_MAX_AGE_HOURS: int = 24
+    HIGH_CONFIDENCE_SNAPSHOT_TTL: int = 300
+    HIGH_CONFIDENCE_MAX_WORKERS: int = 4
+    HIGH_CONFIDENCE_NEWS_MAX_WORKERS: int = 4
+    HIGH_CONFIDENCE_LIVE_FALLBACK: bool = False
+    HIGH_CONFIDENCE_DISCOVERY_TARGET: int = 600
+    HIGH_CONFIDENCE_DISCOVERY_QUERY_LIMIT: int = 35
+    HIGH_CONFIDENCE_DISCOVERY_CACHE_TTL: int = 21600
+    HIGH_CONFIDENCE_UNIVERSE: list[str] = [
+        "AAPL",
+        "GOOGL",
+        "MSFT",
+        "NVDA",
+        "TSLA",
+        "RELIANCE.NS",
+        "TCS.NS",
+        "ICICIBANK.NS",
+        "SBIN.NS",
+        "TRENT.NS",
+    ]
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
@@ -86,6 +120,11 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_cache_dir(cls, value: str) -> str:
         return str(Path(value))
+
+    @field_validator("NEWS_PROVIDER", mode="before")
+    @classmethod
+    def normalize_news_provider(cls, value: str) -> str:
+        return str(value or "gnews").strip().lower()
     
     class Config:
         env_file = ".env"
