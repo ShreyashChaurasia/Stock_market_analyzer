@@ -1,3 +1,4 @@
+import math
 import re
 import pandas as pd
 import yfinance as yf
@@ -228,6 +229,18 @@ class MarketDataService:
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _to_finite_float(value: Any) -> Optional[float]:
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            return None
+
+        if not math.isfinite(numeric_value):
+            return None
+
+        return numeric_value
 
     def _get_cached_stock_info(self, ticker: str) -> Optional[Dict[str, Any]]:
         cache_key = ticker.upper()
@@ -689,12 +702,31 @@ class MarketDataService:
             if hist.empty or len(hist) < 2:
                 logger.warning(f"Insufficient data for {index_symbol}")
                 return None
-            
-            current_price = float(hist['Close'].iloc[-1])
-            previous_close = float(hist['Close'].iloc[-2])
-            
+
+            close_series = pd.to_numeric(hist.get('Close'), errors='coerce').dropna()
+            if len(close_series) < 2:
+                logger.warning(f"Insufficient valid close data for {index_symbol}")
+                return None
+
+            current_price = self._to_finite_float(close_series.iloc[-1])
+            previous_close = self._to_finite_float(close_series.iloc[-2])
+
+            if current_price is None or previous_close is None or abs(previous_close) < 1e-12:
+                logger.warning(
+                    f"Invalid close values for {index_symbol}: current={current_price}, "
+                    f"previous={previous_close}"
+                )
+                return None
+
             change = current_price - previous_close
             change_percent = (change / previous_close) * 100
+
+            if not math.isfinite(change) or not math.isfinite(change_percent):
+                logger.warning(
+                    f"Invalid change values for {index_symbol}: "
+                    f"change={change}, change_percent={change_percent}"
+                )
+                return None
             
             return {
                 'symbol': index_symbol,
@@ -1032,17 +1064,40 @@ class MarketDataService:
             
             result = []
             for index, row in hist.iterrows():
-                volume_value = int(row['Volume']) if pd.notna(row.get('Volume')) else 0
+                open_price = self._to_finite_float(row.get('Open'))
+                high_price = self._to_finite_float(row.get('High'))
+                low_price = self._to_finite_float(row.get('Low'))
+                close_price = self._to_finite_float(row.get('Close'))
+
+                if (
+                    open_price is None
+                    or high_price is None
+                    or low_price is None
+                    or close_price is None
+                ):
+                    continue
+
+                sma_20 = self._to_finite_float(row.get('SMA_20'))
+                sma_50 = self._to_finite_float(row.get('SMA_50'))
+
+                volume_raw = self._to_finite_float(row.get('Volume'))
+                volume_value = int(volume_raw) if volume_raw is not None else 0
+
+                date_value = index.isoformat() if hasattr(index, 'isoformat') else str(index)
+
                 result.append({
-                    'date': index.isoformat(),
-                    'open': round(float(row['Open']), 2),
-                    'high': round(float(row['High']), 2),
-                    'low': round(float(row['Low']), 2),
-                    'close': round(float(row['Close']), 2),
-                    'sma_20': round(float(row['SMA_20']), 2) if not pd.isna(row['SMA_20']) else None,
-                    'sma_50': round(float(row['SMA_50']), 2) if not pd.isna(row['SMA_50']) else None,
+                    'date': date_value,
+                    'open': round(open_price, 2),
+                    'high': round(high_price, 2),
+                    'low': round(low_price, 2),
+                    'close': round(close_price, 2),
+                    'sma_20': round(sma_20, 2) if sma_20 is not None else None,
+                    'sma_50': round(sma_50, 2) if sma_50 is not None else None,
                     'volume': volume_value,
                 })
+
+            if not result:
+                logger.warning(f"No valid historical rows remained after sanitization for {ticker}")
             
             return {
                 'interval': config['interval'],

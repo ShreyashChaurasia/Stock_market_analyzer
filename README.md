@@ -298,6 +298,9 @@ The following variables are read from the `.env` file in the project root:
 | `DEBUG` | `False` | Enable debug mode and auto-reload |
 | `SECRET_KEY` | — | Secret key; must be changed in production |
 | `ENVIRONMENT` | `development` | Runtime environment label |
+| `CORS_ORIGINS` | `[*]` | Allowed frontend origins as JSON array or comma-separated list |
+| `CORS_ALLOW_ORIGIN_REGEX` | — | Optional regex for dynamic origins (for example Vercel preview URLs) |
+| `CORS_ALLOW_CREDENTIALS` | `False` | Keep `False` unless browser cookies/auth headers are required |
 | `MODEL_DIR` | `models` | Directory for saved model artifacts |
 | `DATA_DIR` | `data/raw` | Directory for raw data files |
 | `OUTPUT_DIR` | `outputs` | Directory for prediction output JSON files |
@@ -323,6 +326,12 @@ The following variables are read from the `.env` file in the project root:
 | `HIGH_CONFIDENCE_LIVE_FALLBACK` | `False` | When `False`, non-refresh requests avoid slow live retraining fallback |
 | `DATABASE_URL` | — | Optional PostgreSQL connection string (future use) |
 | `REDIS_URL` | — | Optional Redis connection URL (future use) |
+
+Frontend environment variables (`frontend/.env` or Vercel project settings):
+
+| Variable | Example | Description |
+|---|---|---|
+| `VITE_API_URL` | `https://stockmarketanalyzer-production-e498.up.railway.app` | Base URL used by the frontend for all API requests |
 
 ---
 

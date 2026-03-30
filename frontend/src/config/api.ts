@@ -1,4 +1,12 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const normalizeBaseUrl = (value?: string) => (value ? value.trim().replace(/\/+$/, '') : '');
+
+const envApiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL);
+const defaultProductionApiBaseUrl = 'https://stockmarketanalyzer-production-e498.up.railway.app';
+const defaultDevelopmentApiBaseUrl = 'http://localhost:8000';
+
+export const API_BASE_URL =
+  envApiBaseUrl ||
+  (import.meta.env.PROD ? defaultProductionApiBaseUrl : defaultDevelopmentApiBaseUrl);
 
 export const API_ENDPOINTS = {
   health: '/api/health',

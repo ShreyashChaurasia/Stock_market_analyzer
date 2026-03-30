@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Optional
 from functools import lru_cache
@@ -23,10 +24,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     
     # CORS Configuration
-    CORS_ORIGINS: list = ["*"]
-    CORS_ALLOW_CREDENTIALS: bool = True
-    CORS_ALLOW_METHODS: list = ["*"]
-    CORS_ALLOW_HEADERS: list = ["*"]
+    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ALLOW_ORIGIN_REGEX: Optional[str] = None
+    CORS_ALLOW_CREDENTIALS: bool = False
+    CORS_ALLOW_METHODS: list[str] = ["*"]
+    CORS_ALLOW_HEADERS: list[str] = ["*"]
     
     # ML Model Configuration
     MIN_TRAINING_SAMPLES: int = 100
@@ -115,6 +117,47 @@ class Settings(BaseSettings):
             return False
 
         return value
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value):
+        if isinstance(value, list):
+            normalized = [str(origin).strip().rstrip("/") for origin in value if str(origin).strip()]
+            return normalized or ["*"]
+
+        if value is None:
+            return ["*"]
+
+        raw = str(value).strip()
+        if not raw:
+            return ["*"]
+
+        parsed_origins: list[str] = []
+        if raw.startswith("["):
+            try:
+                decoded = json.loads(raw)
+                if isinstance(decoded, list):
+                    parsed_origins = [
+                        str(origin).strip().rstrip("/")
+                        for origin in decoded
+                        if str(origin).strip()
+                    ]
+            except json.JSONDecodeError:
+                parsed_origins = []
+
+        if not parsed_origins:
+            parsed_origins = [segment.strip().rstrip("/") for segment in raw.split(",") if segment.strip()]
+
+        return parsed_origins or ["*"]
+
+    @field_validator("CORS_ALLOW_ORIGIN_REGEX", mode="before")
+    @classmethod
+    def normalize_cors_origin_regex(cls, value):
+        if value is None:
+            return None
+
+        normalized = str(value).strip()
+        return normalized or None
 
     @field_validator("YFINANCE_CACHE_DIR", mode="after")
     @classmethod
