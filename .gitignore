@@ -72,6 +72,15 @@ outputs/*.csv
 outputs/*.png
 !outputs/.gitkeep
 
+# Verification artifacts (runtime + tests)
+outputs/verification/
+outputs/test_artifacts/
+data/verification/
+
+# Legacy temp dirs created by earlier verification tests
+verification-api-*/
+verification-tests-*/
+
 # ============================================================================
 # Logs
 # ============================================================================

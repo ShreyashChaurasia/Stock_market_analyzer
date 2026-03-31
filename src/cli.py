@@ -38,6 +38,13 @@ def main():
         help="End date (YYYY-MM-DD)"
     )
 
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="logistic",
+        help="Model type for backtesting (logistic, random_forest, xgboost, gradient_boosting)"
+    )
+
     args = parser.parse_args()
 
     if args.mode == "inference":
@@ -51,7 +58,8 @@ def main():
         run_backtest_pipeline(
             ticker=args.ticker,
             start=args.start,
-            end=args.end
+            end=args.end,
+            model_type=args.model_type,
         )
 
 

@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.core.config import settings
+from src.core.prediction_data import fetch_prepared_prediction_frames
 from src.core.logger import get_logger
 from src.core.exceptions import StockAnalyzerException
 from src.middleware.error_handler import (
@@ -20,15 +21,17 @@ from src.middleware.error_handler import (
 from src.middleware.logging_middleware import LoggingMiddleware
 from src.schemas.prediction import PredictionRequest, PredictionResponse
 from src.schemas.stock import HealthResponse
+from src.schemas.verification import (
+    BacktestVerificationResponse,
+    LiveVerificationSummaryResponse,
+)
 from src.pipelines.inference_pipeline import run_inference_pipeline
 from src.services.model_service import ModelService
 from src.registry.model_registry import registry
-from src.core.data_fetcher import fetch_stock_data
-from src.core.indicators import add_indicators
-from src.core.feature_engineering import add_ml_features
 from src.services.market_data_service import market_service
 from src.services.news_service import news_service
 from src.services.dashboard_service import dashboard_service
+from src.verification.service import verification_service
 
 logger = get_logger(__name__)
 
@@ -37,6 +40,11 @@ startup_time = time.time()
 
 # Initialize services
 model_service = ModelService()
+
+
+def _load_training_dataframe(ticker: str):
+    frames = fetch_prepared_prediction_frames(ticker=ticker)
+    return frames.training_df
 
 
 # Lifespan (replaces deprecated on_event)
@@ -129,7 +137,8 @@ async def predict_stock(request: PredictionRequest):
     result = run_inference_pipeline(
         ticker=request.ticker,
         start=request.start_date,
-        end=request.end_date
+        end=request.end_date,
+        period=request.period,
     )
 
     return result
@@ -146,10 +155,8 @@ async def predict_with_version(version_id: str, ticker: str):
     """
     logger.info(f"Predict with version {version_id} for {ticker}")
 
-    df = fetch_stock_data(ticker, period="1y")
-    df = add_indicators(df)
-    df = add_ml_features(df)
-    df = df.dropna()
+    frames = fetch_prepared_prediction_frames(ticker=ticker, period="1y")
+    df = frames.prediction_df
 
     result = model_service.predict_with_model(version_id, df)
 
@@ -158,6 +165,52 @@ async def predict_with_version(version_id: str, ticker: str):
         "ticker": ticker,
         "prediction": result
     }
+
+
+@app.get(
+    "/api/verification/backtest/{ticker}",
+    response_model=BacktestVerificationResponse,
+    tags=["Verification"],
+)
+async def get_backtest_verification(
+    ticker: str,
+    model_type: str = "logistic",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    refresh: bool = False,
+):
+    """Get or generate a historical walk-forward verification report."""
+    try:
+        return verification_service.get_backtest_report(
+            ticker=ticker.upper(),
+            model_type=model_type,
+            start_date=start_date,
+            end_date=end_date,
+            refresh=refresh,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get(
+    "/api/verification/live/{ticker}",
+    response_model=LiveVerificationSummaryResponse,
+    tags=["Verification"],
+)
+async def get_live_verification(
+    ticker: str,
+    model_type: str | None = None,
+    refresh: bool = False,
+):
+    """Resolve and summarize live prediction accuracy for a ticker."""
+    try:
+        return verification_service.get_live_verification_summary(
+            ticker=ticker.upper(),
+            model_type=model_type,
+            refresh=refresh,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # Model Training Routes
@@ -177,11 +230,7 @@ async def train_single_model(
     """
     logger.info(f"Training {model_type} for {ticker}")
 
-    df = fetch_stock_data(ticker)
-    df = add_indicators(df)
-    df = add_ml_features(df)
-    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
-    df = df.dropna()
+    df = _load_training_dataframe(ticker)
 
     result = model_service.train_single_model(df, ticker, model_type, tune)
 
@@ -202,11 +251,7 @@ async def compare_models(ticker: str):
     """
     logger.info(f"Comparing all models for {ticker}")
 
-    df = fetch_stock_data(ticker)
-    df = add_indicators(df)
-    df = add_ml_features(df)
-    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
-    df = df.dropna()
+    df = _load_training_dataframe(ticker)
 
     result = model_service.train_all_models(df, ticker)
 

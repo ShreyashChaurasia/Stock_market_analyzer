@@ -1,8 +1,34 @@
 import pytest
 from fastapi.testclient import TestClient
 from app import app
+from src.core.exceptions import DataFetchError
 
 client = TestClient(app)
+
+
+def _mock_prediction_response(ticker: str) -> dict:
+    return {
+        "ticker": ticker,
+        "prediction_date": "2026-03-31 10:00:00",
+        "latest_data_date": "2026-03-30",
+        "latest_close": 210.25,
+        "currency": "USD",
+        "probability_up": 0.64,
+        "probability_down": 0.36,
+        "prediction": "UP",
+        "confidence": 0.28,
+        "confidence_percent": "28.0%",
+        "confidence_tier": "high",
+        "is_very_high_confidence": False,
+        "model_auc": 0.58,
+        "data_points_used": 128,
+        "interpretation": "Moderate signal for price to increase",
+        "model_type": "logistic",
+        "prediction_id": "pred-123",
+        "verification_status": "pending",
+        "verification_balanced_accuracy": 0.56,
+        "verification_sample_count": 128,
+    }
 
 
 def test_read_root():
@@ -21,8 +47,10 @@ def test_health_check():
     assert "version" in data
 
 
-def test_predict_valid_ticker():
+def test_predict_valid_ticker(monkeypatch):
     """Test prediction with valid ticker"""
+    monkeypatch.setattr("app.run_inference_pipeline", lambda **_: _mock_prediction_response("AAPL"))
+
     response = client.post(
         "/api/predict",
         json={"ticker": "AAPL", "period": "1y"}
@@ -31,10 +59,17 @@ def test_predict_valid_ticker():
     data = response.json()
     assert data["ticker"] == "AAPL"
     assert "prediction" in data
+    assert data["prediction_id"] == "pred-123"
+    assert data["verification_balanced_accuracy"] == 0.56
 
 
-def test_predict_invalid_ticker():
+def test_predict_invalid_ticker(monkeypatch):
     """Test prediction with invalid ticker"""
+    def _raise_invalid(**_):
+        raise DataFetchError("INVALID123", "Ticker not found")
+
+    monkeypatch.setattr("app.run_inference_pipeline", _raise_invalid)
+
     response = client.post(
         "/api/predict",
         json={"ticker": "INVALID123", "period": "1y"}
@@ -206,4 +241,4 @@ def test_high_confidence_dashboard_refresh_success(monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert data["message"] == "Dashboard snapshot refreshed"
+    assert data["message"] == "Quant Discovery snapshot refreshed"

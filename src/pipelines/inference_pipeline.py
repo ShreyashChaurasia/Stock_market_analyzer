@@ -1,19 +1,10 @@
-from src.core.data_fetcher import fetch_stock_data
-from src.core.indicators import add_indicators
-from src.core.feature_engineering import add_ml_features
-from src.core.probability_model import train_probability_model, predict_probability
-import pandas as pd
 import json
 import os
 from datetime import datetime
 
 from src.core.config import settings
-
-
-def infer_currency_from_ticker(ticker: str) -> str:
-    if ticker.endswith((".NS", ".BO")):
-        return "INR"
-    return "USD"
+from src.core.prediction_data import infer_currency_from_ticker
+from src.verification.service import verification_service
 
 
 def get_confidence_signal(confidence: float, model_auc: float) -> tuple[str, bool]:
@@ -31,7 +22,13 @@ def get_confidence_signal(confidence: float, model_auc: float) -> tuple[str, boo
     return "low", False
 
 
-def run_inference_pipeline(ticker: str, start=None, end=None):
+def run_inference_pipeline(
+    ticker: str,
+    start: str | None = None,
+    end: str | None = None,
+    period: str | None = None,
+    model_type: str = "logistic",
+):
     """
     Run complete inference pipeline for stock prediction
     
@@ -56,93 +53,79 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     print(f"INFERENCE PIPELINE - {ticker}")
     print(f"{'='*60}\n")
 
-    # Step 1: Fetch stock data
-    print("Step 1/7: Fetching stock data...")
-    df = fetch_stock_data(ticker, start=start, end=end)
+    print("Step 1/4: Preparing prediction dataset...")
+    prediction_snapshot = verification_service.build_prediction_snapshot(
+        ticker=ticker,
+        model_type=model_type,
+        start_date=start,
+        end_date=end,
+        period=period,
+    )
+    print(f"   Model: {prediction_snapshot['model_name']}")
+    print(f"   Latest data date: {prediction_snapshot['latest_data_date']}")
+    print("   Shared feature engineering and verification path loaded\n")
 
-    if df.empty or len(df) < 100:
-        raise ValueError(
-            f"Insufficient data for {ticker}: {len(df)} rows. Need at least 100 days."
-        )
-    
-    print(f"   Data range: {df.index[0].date()} to {df.index[-1].date()}")
-    print(f"   Total rows: {len(df)}\n")
+    print("Step 2/4: Resolving any pending live verification records...")
+    verification_service.resolve_live_predictions(ticker=ticker, model_type=model_type)
+    print("   Live verification ledger refreshed\n")
 
-    # Step 2: Add technical indicators
-    print("Step 2/7: Adding technical indicators...")
-    df = add_indicators(df)
-    print("   Added: SMA, EMA, RSI, MACD, Bollinger Bands\n")
+    print("Step 3/4: Recording prediction for future live verification...")
+    prediction_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    live_record = verification_service.upsert_live_prediction(
+        {
+            "ticker": ticker,
+            "model_type": prediction_snapshot["model_type"],
+            "prediction_date": prediction_date,
+            "latest_data_date": prediction_snapshot["latest_data_date"],
+            "threshold": prediction_snapshot["threshold"],
+            "probability_up": prediction_snapshot["probability_up"],
+            "prediction": prediction_snapshot["prediction"],
+            "confidence": prediction_snapshot["confidence"],
+            "latest_close": prediction_snapshot["latest_close"],
+        }
+    )
+    print(f"   Prediction ID: {live_record['prediction_id']}")
+    print(f"   Verification status: {live_record['status']}\n")
 
-    # Step 3: Add ML features
-    print("Step 3/7: Engineering ML features...")
-    df = add_ml_features(df)
-    print("   Added: Returns, Volatility, Trend features\n")
-
-    # Step 4: Create target variable (UP/DOWN next day)
-    print("Step 4/7: Creating target variable...")
-    df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
-    print("   Target: 1 = Price UP next day, 0 = Price DOWN next day\n")
-
-    # Step 5: Clean data
-    print("Step 5/7: Cleaning data...")
-    rows_before = len(df)
-    df = df.dropna()
-    rows_after = len(df)
-    print(f"   Removed {rows_before - rows_after} rows with NaN values")
-    print(f"   Clean data: {rows_after} rows\n")
-
-    if len(df) < 50:
-        raise ValueError(
-            f"Insufficient clean data after feature engineering: {len(df)} rows"
-        )
-
-    # Step 6: Train model
-    print("Step 6/7: Training ML model...")
-    auc = train_probability_model(df, ticker)
-    print("   Model: Logistic Regression")
-    print(f"   Test AUC Score: {auc:.4f}")
-    print(f"   Model saved to: models/{ticker}_model.pkl\n")
-
-    # Step 7: Get latest prediction
-    print("Step 7/7: Making prediction...")
-    probability_up = predict_probability(df, ticker)
-    
-    # Calculate prediction details
-    prediction_direction = "UP" if probability_up > 0.5 else "DOWN"
-    confidence = abs(probability_up - 0.5) * 2  # Scale to 0-1
-    
-    print(f"   Probability UP: {probability_up:.2%}")
-    print(f"   Prediction: {prediction_direction}")
-    print(f"   Confidence: {confidence:.2%}\n")
-
-    confidence_tier, is_very_high_confidence = get_confidence_signal(confidence, auc)
-
-    # Prepare output
-    latest_date = df.index[-1].strftime("%Y-%m-%d")
-    latest_close = float(df["Close"].iloc[-1])
+    print("Step 4/4: Building response payload...")
+    probability_up = prediction_snapshot["probability_up"]
+    confidence = prediction_snapshot["confidence"]
+    model_metrics = prediction_snapshot["historical_metrics"]
+    model_auc = float(model_metrics.get("roc_auc", prediction_snapshot["holdout_metrics"]["roc_auc"]))
+    confidence_tier, is_very_high_confidence = get_confidence_signal(confidence, model_auc)
 
     result = {
         "ticker": ticker,
-        "prediction_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "latest_data_date": latest_date,
-        "latest_close": round(latest_close, 2),
+        "prediction_date": prediction_date,
+        "latest_data_date": prediction_snapshot["latest_data_date"],
+        "latest_close": prediction_snapshot["latest_close"],
         "currency": infer_currency_from_ticker(ticker),
         "probability_up": round(probability_up, 4),
         "probability_down": round(1 - probability_up, 4),
-        "prediction": "UP" if probability_up > 0.5 else "DOWN",
+        "prediction": prediction_snapshot["prediction"],
         "confidence": round(confidence, 4),
         "confidence_percent": f"{confidence * 100:.1f}%",
         "confidence_tier": confidence_tier,
         "is_very_high_confidence": is_very_high_confidence,
-        "model_auc": round(auc, 4),
-        "data_points_used": len(df),
-        "interpretation": get_interpretation(probability_up, confidence)
+        "model_auc": round(model_auc, 4),
+        "data_points_used": int(prediction_snapshot["training_rows"]),
+        "interpretation": get_interpretation(probability_up, confidence),
+        "model_type": prediction_snapshot["model_type"],
+        "prediction_id": live_record["prediction_id"],
+        "verification_status": live_record["status"],
+        "verification_balanced_accuracy": round(
+            float(model_metrics.get("balanced_accuracy", prediction_snapshot["holdout_metrics"]["balanced_accuracy"])),
+            4,
+        ),
+        "verification_sample_count": int(
+            model_metrics.get("sample_count", prediction_snapshot["holdout_metrics"]["sample_count"])
+        ),
     }
 
     # Save results
-    os.makedirs("outputs", exist_ok=True)
-    output_path = f"outputs/{ticker}.json"
-    with open(output_path, "w") as f:
+    os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+    output_path = os.path.join(settings.OUTPUT_DIR, f"{ticker}.json")
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=4)
     
     print(f"Saved results to: {output_path}")
@@ -152,9 +135,10 @@ def run_inference_pipeline(ticker: str, start=None, end=None):
     print(f"PREDICTION COMPLETE")
     print(f"{'='*60}")
     print(f"Ticker: {ticker}")
-    print(f"Latest Price: {infer_currency_from_ticker(ticker)} {latest_close:.2f}")
+    print(f"Latest Price: {infer_currency_from_ticker(ticker)} {prediction_snapshot['latest_close']:.2f}")
     print(f"Prediction: {result['prediction']} with {result['confidence_percent']} confidence")
     print(f"Interpretation: {result['interpretation']}")
+    print(f"Verification BA: {result['verification_balanced_accuracy']:.4f}")
     print(f"{'='*60}\n")
 
     return result
